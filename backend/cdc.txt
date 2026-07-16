@@ -1,0 +1,419 @@
+Cahier des Charges (CDC)
+
+Système d'Information Centralisé de Gestion des Badges Aéroportuaires (SIGBA)
+
+Projet réalisé pour la Royal Air Maroc
+
+Document de spécification
+
+Note : Cette version 1.1 corrige la v1.0 : le système n'est plus une plateforme multi-entreprises mais un système mono-entreprise dédié exclusivement aux employés de la Royal Air Maroc, qui a commandité le projet. Le concept d'« entreprise tierce » est remplacé par celui de « direction / service RAM ».
+
+CDC — SIGBA
+
+1. Contexte du projet
+
+La Royal Air Maroc (RAM), compagnie aérienne nationale, emploie un personnel nombreux et diversifié — personnel navigant, agents de piste, agents commerciaux, techniciens de maintenance, personnel administratif — réparti au sein de différentes directions et services. Une partie de ce personnel doit circuler quotidiennement dans des zones à accès réglementé de l'aéroport (zones réservées, pistes, zones de tri bagages), ce qui nécessite la possession d'un badge nominatif. L'attribution de ces badges est aujourd'hui gérée de façon manuelle, cloisonnée par service et peu traçable.
+
+Le projet SIGBA, commandité par la Royal Air Maroc, vise à remplacer ce processus par une plateforme centralisée, sécurisée et auditable, respectant la séparation stricte entre la RAM (à travers ses directions et ses managers, en tant que demandeur) et l'autorité de sûreté aéroportuaire, seule habilitée à valider et délivrer un badge de manière définitive.
+
+Contrairement à une plateforme multi-entreprises, SIGBA est un système mono-entreprise : seuls les employés rattachés à la Royal Air Maroc peuvent être enregistrés sur la plateforme et disposer d'un badge via celle-ci. Aucune société tierce, sous-traitant ou prestataire externe à la RAM n'est géré par le système.
+
+Le système s'appuie exclusivement sur une base de données relationnelle standard (SQL) pour la persistance et la traçabilité, sans recours à la cryptographie avancée, au chaînage de blocs ou aux signatures numériques.
+
+2. Problématique
+
+Comment concevoir un système centralisé permettant aux employés de la Royal Air Maroc, répartis dans différentes directions, de soumettre des demandes de badges, avec une pré-approbation par leur manager de direction, tout en garantissant un contrôle de validation final exclusif par l'autorité de sûreté aéroportuaire, une réactivité immédiate en cas d'incident, et une traçabilité fiable des accès — le tout sans complexité cryptographique superflue ?
+
+2.1 Défi 1 — Souveraineté du workflow multi-acteurs
+
+Permettre aux employés des différentes directions de la Royal Air Maroc de soumettre leurs demandes de badge, avec une pré-approbation par leur manager de direction, tout en conservant le pouvoir exclusif de validation finale entre les mains de l'autorité de sûreté aéroportuaire — acteur externe à la RAM.
+
+2.2 Défi 2 — Réactivité face aux incidents
+
+Garantir la désactivation instantanée d'un badge d'employé RAM en cas de perte, vol ou fin de contrat, pour éviter toute faille exploitable.
+
+2.3 Défi 3 — Traçabilité des accès
+
+Historiser chaque tentative de passage avec un niveau de détail suffisant pour répondre aux exigences d'audit interne de la RAM et de l'autorité aéroportuaire, sans recourir à des mécanismes de chaînage cryptographique.
+
+3. Objectifs du projet
+
+# | Objectif | Indicateur de réussite
+O1 | Dématérialiser et centraliser toutes les demandes de badges des employés RAM sur une interface unique | 100 % des demandes créées via la plateforme
+O2 | Garantir qu'aucun badge ne soit actif sans la validation finale de l'Agent de Sûreté | Aucun badge actif sans validation N2 tracée en base
+O3 | Permettre la désactivation immédiate d'un badge en cas de perte ou vol | Badge désactivé immédiatement après le signalement
+O4 | Assurer un historique consultable et fiable de tous les passages | 100 % des tentatives d'accès horodatées et conservées
+
+4. Périmètre fonctionnel
+
+Inclus dans le périmètre :
+- Gestion des comptes et profils utilisateurs (Super-Admin, Manager, Employé, Agent de Sûreté), avec authentification et contrôle d'accès basé sur les rôles (RBAC) délégués à un fournisseur d'identité (Keycloak).
+- Gestion du référentiel interne des directions / services de la Royal Air Maroc (aucune notion d'entreprise externe).
+- Workflow de demande de badge : soumission par l'Employé RAM, validation N1 par le Manager de sa direction, instruction et validation N2 par l'Agent de Sûreté.
+- Distinction conceptuelle entre la Demande et le Badge : la Demande est l'objet du workflow (elle peut être refusée, permettant à l'employé d'en soumettre une nouvelle), tandis que le Badge n'est créé que lorsqu'une Demande obtient la validation finale de l'Agent de Sûreté au niveau 2. Un refus de Demande ne génère aucun Badge ; un Badge n'existe que s'il a été réellement accordé.
+- Le statut « Refusé » n'est pas terminal : l'employé peut soumettre une nouvelle demande à tout moment après un refus, que ce soit au niveau N1 ou N2.
+- Gestion du cycle de vie du badge (émission, activation, suspension, révocation, expiration).
+- Définition des habilitations par zone (Pistes, Tri Bagages, Zones réservées), décidée par l'Agent de Sûreté.
+- Simulation logicielle des lecteurs de badges via interface Web ou API REST.
+- Journalisation des tentatives d'accès (UID du badge, zone, horodatage, résultat).
+- Tableau de bord de consultation et de filtrage de l'historique pour la Sûreté et le Super-Admin.
+
+Hors périmètre :
+- Gestion de plusieurs entreprises externes : le système est réservé exclusivement aux employés de la Royal Air Maroc. Aucune société tierce, sous-traitante ou prestataire non-RAM ne peut être enregistrée sur la plateforme.
+
+5. Acteurs du système
+
+Acteur | Rôle
+
+Super-Admin (RAM) : Administre l'ensemble du système pour le compte de la Royal Air Maroc. Crée les comptes des directions/services RAM (managers) et les comptes des agents de sûreté. Supervise le bon fonctionnement de la plateforme et peut consulter l'intégralité des données. Ne gère aucune entreprise externe : le référentiel est strictement interne à la RAM.
+
+Manager (Direction RAM) : Valide les demandes de badge des employés de sa direction au Niveau 1 (pré-approbation). Sélectionne et demande les zones d'accès strictement nécessaires au poste lors de la validation N1. Déclare les pertes, vols ou fins de contrat pour les employés de sa direction. Génère les codes d'invitation pour le rattachement des employés à sa direction. Consulte les profils des employés de sa propre direction uniquement (cloisonnement par direction).
+
+Employé (RAM) : Crée son propre compte en saisissant un code d'invitation transmis par son Manager de direction, puis soumet ses pièces justificatives pour obtenir un badge. Peut déclarer la perte ou le vol de son propre badge. Accède à son historique de passages.
+
+Agent de Sûreté (Autorité aéroportuaire) : Acteur externe à la RAM, représentant l'autorité de sûreté aéroportuaire. Instruit les dossiers de demande (casier judiciaire, attestations de formation, justification du poste). Décide souverainement de la validation ou du refus final au Niveau 2, indépendamment de la RAM. Octroie ou valide définitivement les habilitations par zone en base lors de la validation N2. Confirme les révocations d'urgence. Consulte et filtre l'historique des accès.
+
+6. Expérience Utilisateur (UX) — Parcours par rôle
+
+Chaque acteur dispose d'une interface adaptée à ses responsabilités, avec un tableau de bord personnalisé présentant les actions prioritaires et les informations pertinentes pour son rôle.
+
+Super-Admin (RAM)
+
+Page d'accueil : tableau de bord central affichant une vue d'ensemble du système : nombre de directions RAM enregistrées, nombre de badges par statut (actif, suspendu, révoqué, expiré), alertes récentes.
+
+Fonctionnalités clés :
+- Gestion des directions RAM : création, modification, désactivation des directions / services internes (référentiel interne uniquement, aucune entreprise externe).
+- Gestion des agents de sûreté : création et habilitation des comptes agents (acteurs externes rattachés à l'autorité aéroportuaire).
+- Consultation globale : accès en lecture seule à l'ensemble des dossiers, badges, passages et habilitations des employés RAM.
+- Génération de rapports : export des données d'audit et des statistiques du système.
+- Simulation de lecteur : page dédiée permettant de déclencher un passage de test (UID badge + zone) via l'API REST.
+
+Expérience : interface administrative panoramique. Le Super-Admin voit tout mais ne participe pas au workflow de validation. Il administre la structure interne de la RAM (directions, managers) et les comptes des agents de sûreté.
+
+Manager (Direction RAM)
+
+Page d'accueil : tableau de bord restreint à sa direction uniquement : liste des employés de la direction, statut des badges, demandes en attente de sa validation N1.
+
+Fonctionnalités clés :
+- Validation N1 : pré-approuve ou refuse les demandes de badge soumises par les employés de sa direction.
+- Signalement d'incidents : déclare une perte, un vol ou une fin de contrat pour le compte d'un employé de sa direction.
+- Consultation des profils : accède aux dossiers et au statut des badges des employés de sa direction.
+- Vue filtrée : ne voit que les employés et badges de sa propre direction (cloisonnement total par direction, et non plus par entreprise).
+
+Expérience : interface simple et cloisonnée par direction. Le Manager se connecte et voit immédiatement ce qui nécessite son action. Il ne peut en aucun cas interférer avec les données d'une autre direction ni valider un badge définitivement.
+
+Employé (RAM)
+
+Page d'accueil : tableau de bord personnel affichant le statut de son badge (actif, en demande, suspendu, révoqué), ainsi que son historique de passages.
+
+Fonctionnalités clés :
+- Création de compte : s'inscrit sur la plateforme avec son adresse email professionnelle RAM et saisit un code d'invitation transmis par son Manager de direction.
+- Soumission de demande : remplit un formulaire avec ses pièces justificatives (justificatif d'identité, attestations de formation, justification du poste).
+- Consultation du statut : suit l'avancement de sa demande (en attente N1, en attente N2, validée, refusée).
+- Déclaration d'incident : signale la perte ou le vol de son badge via un bouton dédié.
+- Historique personnel : consulte la liste de ses propres passages.
+
+Expérience : interface minimaliste et guidée. L'Employé n'a que les actions qui le concernent directement. Le parcours est linéaire : soumettre une demande, attendre les validations, consulter son statut, déclarer un incident si nécessaire.
+
+Agent de Sûreté (Autorité aéroportuaire)
+
+Page d'accueil : tableau de bord central de la sûreté : file d'attente des dossiers à instruire, alertes de révocation en cours, statistiques des badges actifs par zone.
+
+Fonctionnalités clés :
+- Instruction des dossiers : consulte les pièces justificatives, vérifie la conformité (casier judiciaire, formations, justification du poste).
+- Décision N2 : valide ou refuse définitivement une demande de badge, en toute indépendance vis-à-vis de la RAM.
+- Attribution des habilitations : associe les zones autorisées (Pistes, Tri Bagages, Zones réservées) à chaque badge validé.
+- Gestion des révocations : reçoit les alertes de perte/vol, confirme la révocation définitive ou lève la suspension.
+- Consultation et filtrage de l'historique : accède à l'intégralité des passages des employés RAM pour l'audit.
+
+Expérience : interface décisionnelle et centralisée. L'Agent de Sûreté est le cœur du système : il instruit, valide ou refuse, et définit les droits. Son tableau de bord est conçu pour traiter efficacement les dossiers en attente et réagir rapidement aux alertes.
+
+7. Diagrammes UML
+
+Les diagrammes de cas d'utilisation, de classes et de séquence doivent être mis à jour pour refléter la suppression du concept d'« entreprise tierce » (remplacé par « direction RAM ») et la disparition des écrans de gestion multi-entreprises. Une version corrigée de ces diagrammes peut être régénérée séparément à partir de ce CDC v1.1.
+
+7.1 Diagramme de cas d'utilisation
+7.2 Diagramme de classes
+7.3 Diagrammes de séquence
+
+7.3.1 Super-Admin
+- Gestion des comptes des agents de sûreté
+- Gestion des directions RAM
+- Consultation de l'intégralité des données
+
+7.3.2 Manager
+- Préapprouver une demande de validation N1
+- Consulter les profils des employés de sa direction
+
+7.3.3 Employé
+- Création d'un compte professionnel
+- Soumission d'une demande de badge
+- Consultation du statut et de l'historique
+- Signalement de perte ou de vol du badge
+
+7.3.4 Agent de Sûreté
+- Instruction, Validation N2 et Attribution des Habilitations
+- Gestion des Incidents
+- Consultation de l'Historique Global et Export des Rapports d'Audit
+
+8. Exigences fonctionnelles (RF)
+
+Gestion des accès et cloisonnement
+
+- RF1.0 : Le système est réservé exclusivement aux employés de la Royal Air Maroc. Aucune entreprise externe, sous-traitant ou prestataire non-RAM ne peut être enregistré sur la plateforme.
+- RF1.1 : Le système doit permettre au Super-Admin de créer les comptes des directions / managers RAM et des agents de sûreté.
+- RF1.2 : Un Manager ne peut voir et gérer que les employés appartenant à sa propre direction RAM (cloisonnement strict par direction).
+- RF1.3 : Le système doit imposer un circuit de validation à deux niveaux : soumission par l'Employé RAM, pré-approbation (N1) par le Manager de sa direction (incluant la sélection des zones d'accès nécessaires au poste), puis instruction et validation finale (N2) par l'Agent de Sûreté (incluant l'octroi ou la restriction des droits d'accès en base de données).
+- RF1.4 : Aucune direction RAM ni aucun Manager ne peut activer ou modifier un badge sans la validation finale de l'Agent de Sûreté.
+- RF1.5 : Le Manager initie la demande de zones d'accès selon le besoin professionnel lors de la validation N1. L'Agent de Sûreté valide ou refuse ces droits et injecte officiellement les habilitations finales dans la table Habilitation lors de la validation N2.
+- RF1.6 : Le rattachement d'un Employé à une direction RAM doit être validé via un code d'invitation généré par le Manager de cette direction, empêchant tout rattachement libre non contrôlé.
+
+Réactivité et gestion des incidents
+
+- RF2.1 : L'Employé ou le Manager doit pouvoir signaler une perte ou un vol de badge via un bouton dédié dans l'interface.
+- RF2.2 : Dès le signalement, le système doit basculer le statut du badge à « Suspendu » et révoquer tous ses droits d'accès de manière immédiate.
+- RF2.3 : L'Agent de Sûreté doit recevoir une notification du signalement (in-app et/ou email, générée automatiquement par le backend) et confirmer la révocation définitive (statut « Révoqué ») ou lever la suspension si le badge est retrouvé.
+- RF2.4 : Le système doit gérer automatiquement l'expiration des badges à la date de fin de validité définie lors de l'émission.
+- RF2.5 : Le Manager doit pouvoir déclarer la fin de contrat d'un employé de sa direction, entraînant la suspension immédiate du badge selon le même mécanisme que RF2.2.
+
+Traçabilité et historique
+
+- RF3.1 : Chaque tentative d'accès (autorisée ou refusée) doit être enregistrée dans une table « Passage » avec les champs suivants : UID du badge, ID de la zone, horodatage, résultat (Autorisé / Refusé).
+- RF3.2 : Le système doit exposer une interface de consultation et de filtrage de l'historique des passages (par période, zone, direction, employé) accessible à l'Agent de Sûreté et au Super-Admin.
+- RF3.3 : Le système doit générer un identifiant unique (UID textuel de type « A1:B2:C3:D4 ») pour chaque badge émis, stocké en base de données et utilisé pour la simulation des passages.
+- RF3.4 : L'Agent de Sûreté doit pouvoir délivrer un rapport d'audit exportable à partir des données d'historique.
+- RF3.5 : Toute action d'administration (création, modification, désactivation d'un compte direction ou agent) doit être journalisée avec l'identité de l'auteur et l'horodatage.
+
+9. Spécifications détaillées des maquettes (pour le Designer)
+
+Cette section détaille, écran par écran, les éléments attendus afin de faciliter la conception des maquettes (wireframes / UI). Pour chaque écran sont précisés : l'objectif, les composants d'interface, les données affichées, les actions disponibles et les états à prévoir. Seuls les écrans concernant le référentiel « entreprises » ont été modifiés par rapport à la v1.0 ; ils portent désormais sur le référentiel interne « directions RAM ». Les autres écrans restent inchangés dans leur principe.
+
+9.1 Écrans transverses (communs à tous les rôles)
+
+Écran — Connexion (Login)
+Objectif : Authentifier l'utilisateur via Keycloak.
+Composants : Champ email, champ mot de passe, bouton Se connecter, lien Mot de passe oublié, logo / branding SIGBA.
+États : Par défaut / Erreur (identifiants invalides) / Compte désactivé (message spécifique) / Chargement pendant l'authentification.
+
+Écran — Mot de passe oublié
+Objectif : Permettre la réinitialisation via Keycloak.
+Composants : Champ email, bouton Envoyer le lien, message de confirmation d'envoi.
+États : Succès / Email inconnu (message neutre pour ne pas divulguer l'existence du compte) / Erreur technique.
+
+Composant — Barre supérieure (Navbar)
+Objectif : Accès rapide aux fonctions globales, identique sur tous les rôles.
+Composants :
+- Icône cloche (notifications) avec badge de compteur, panneau déroulant listant les notifications (texte, horodatage, lien vers l'élément concerné), bouton Tout marquer comme lu
+- Sélecteur de langue
+- Icône profil (avatar / initiales) avec menu déroulant : nom de l'utilisateur, rôle affiché, lien rapide vers Paramètres et Déconnexion
+États : Aucune notification (état vide) / Notifications non lues (badge visuel) / Menu profil ouvert / fermé.
+
+Composant — Barre latérale (Sidebar)
+Objectif : Navigation entre les modules métier disponibles selon le rôle connecté.
+Composants : Logo SIGBA en haut, liste des onglets métier (icône + libellé, spécifique à chaque rôle), puis en bas de la sidebar, dans cet ordre : Paramètres, Déconnexion.
+Règle transversale : Les onglets métier changent selon le rôle, mais Paramètres et Déconnexion sont fixes et identiques sur les 4 sidebars.
+
+Détail des onglets de sidebar par rôle
+
+Super-Admin :
+1. Tableau de bord
+2. Directions RAM
+3. Agents de sûreté
+4. Consultation globale
+5. Rapports
+6. Simulation de passage
+— (fixe) Paramètres
+— (fixe) Déconnexion
+
+Manager (Direction RAM) :
+1. Tableau de bord
+2. Validations en attente (N1)
+3. Employés de la direction
+4. Invitations
+5. Incidents
+— (fixe) Paramètres
+— (fixe) Déconnexion
+
+Employé (RAM) :
+1. Tableau de bord
+2. Ma demande de badge
+3. Mon historique
+— (fixe) Paramètres
+— (fixe) Déconnexion
+
+Agent de Sûreté :
+1. Tableau de bord
+2. Dossiers RAM à instruire (N2)
+3. Incidents / Révocations
+4. Historique global
+5. Rapports d'audit
+— (fixe) Paramètres
+— (fixe) Déconnexion
+
+Écran — Paramètres (commun aux 4 rôles)
+Objectif : Gestion du compte personnel.
+Composants : Informations du profil (nom, email — en lecture ou édition selon droits Keycloak), bouton Changer le mot de passe (redirection vers Keycloak), préférence de langue, préférence de notifications (email on / off).
+
+9.2 Super-Admin (RAM)
+
+Écran 1 — Tableau de bord général
+Objectif : Donner une vue d'ensemble instantanée de la santé du système.
+Composants :
+- 4 cartes statistiques : nombre de badges actifs, badges suspendus, badges révoqués, badges expirés (RAM uniquement)
+- Graphique (courbe ou barres) : évolution des demandes de badges sur les 30 derniers jours
+- Graphique (camembert ou barres) : répartition des badges par zone
+- Liste Alertes récentes (5 dernières) : type d'alerte, employé concerné, horodatage, lien de détail
+États : Chargement (skeleton) / Aucune donnée (première utilisation) / Données complètes.
+
+Écran 2 — Liste des directions RAM
+Objectif : Gérer le référentiel interne des directions / services de la Royal Air Maroc (remplace la « Liste des entreprises » de la v1.0).
+Composants :
+- Barre de recherche + filtres (statut actif / désactivé)
+- Tableau (nom de la direction, code direction, responsable / manager assigné, nombre d'employés, statut, date de création, actions Modifier / Désactiver)
+- Bouton principal « Créer une direction »
+États : Liste vide (aucune direction) / Liste peuplée / Résultat de recherche vide.
+
+Écran 3 — Formulaire de création / modification d'une direction RAM
+Objectif : Créer ou éditer une fiche direction (remplace la fiche « entreprise » de la v1.0).
+Composants : Champ nom de la direction, champ code direction, champ responsable / manager référent (nom, email, téléphone), boutons Enregistrer / Annuler.
+États : Mode création (champs vides) / Mode édition (champs pré-remplis) / Erreurs de validation par champ.
+
+Écran 4 — Modale de confirmation de désactivation
+Objectif : Éviter une désactivation accidentelle d'une direction.
+Composants : Message d'avertissement (impact sur les employés / badges liés à cette direction), boutons Confirmer / Annuler.
+
+Écran 5 — Liste des agents de sûreté
+Objectif : Gérer les comptes des agents de sûreté (acteurs externes à la RAM).
+Composants : Tableau (nom, matricule, email, statut, dernière connexion), bouton « Créer un agent », action « Révoquer l'accès ».
+États : Identiques au principe de l'écran 2 (vide / peuplé / recherche).
+
+Écran 6 — Formulaire de création d'un agent de sûreté
+Objectif : Créer un compte Agent de Sûreté.
+Composants : Champs identité, matricule, email professionnel, bouton Créer (déclenche la création du compte côté Keycloak).
+
+Écran 7 — Consultation globale (dossiers / badges / passages)
+Objectif : Consultation en lecture seule de l'ensemble des données des employés RAM.
+Composants :
+- Filtres avancés : direction, employé, zone, période, statut de badge
+- Tableau de résultats paginé
+- Vue détail d'un dossier (clic sur une ligne) : informations employé, historique de validation N1 / N2, habilitations, historique de passages associé
+Important pour le designer : Aucun bouton d'action de modification / validation sur cet écran — uniquement consultation (badge visuel Lecture seule recommandé).
+
+Écran 8 — Génération de rapports
+Objectif : Exporter des données d'audit.
+Composants : Sélecteurs de critères (période, direction, zone), boutons de format d'export (PDF / CSV), bouton Générer, liste des exports précédents avec liens de téléchargement.
+États : Génération en cours (indicateur de chargement) / Export prêt / Erreur de génération.
+
+Écran 9 — Page de simulation de passage (test)
+Objectif : Déclencher un passage de test pour valider le comportement du contrôle d'accès (cf. section 4 Périmètre).
+Composants : Champ de saisie / sélection UID de badge, sélecteur de zone, bouton Simuler le passage, zone de résultat affichant Autorisé / Refusé avec le motif.
+États : Résultat autorisé (succès, vert) / Résultat refusé (erreur, rouge, avec motif : badge suspendu / zone non habilitée / badge expiré).
+
+9.3 Manager (Direction RAM)
+
+Écran 1 — Tableau de bord Manager
+Objectif : Vue synthétique des employés de la direction avec mise en avant des actions urgentes.
+Composants :
+- Carte / bandeau mis en évidence : X demandes en attente de validation N1 (cliquable, mène à l'écran 2)
+- Liste des employés de la direction avec statut de badge (pastille couleur : vert = actif, orange = en attente, rouge = suspendu / révoqué, gris = expiré)
+- Bloc alertes : badges arrivant à expiration sous 30 jours
+États : Aucune demande en attente (état neutre) / Demandes en attente (mise en avant visuelle forte).
+
+Écran 2 — File de validation N1
+Objectif : Traiter les demandes soumises par les employés.
+Composants : Liste des dossiers en attente (nom employé, date de soumission, ancienneté de la demande), clic → ouverture fiche détail.
+États : File vide (Aucune demande en attente) / File avec dossiers à traiter.
+
+Écran 3 — Fiche détail d'une demande (Validation N1)
+Objectif : Instruire une demande au niveau 1.
+Composants :
+- Bloc identité employé
+- Visionneuse des pièces justificatives jointes (image / PDF)
+- Sélecteur des zones demandées : 3 cases à cocher (Pistes / Tri Bagages / Zones réservées), chacune avec un champ de justification texte
+- Boutons Pré-approuver / Refuser (le refus ouvre un champ motif obligatoire)
+États : Formulaire vierge / Validation impossible tant qu'au moins une zone n'est pas cochée ou justifiée (message d'erreur associé) / Confirmation après soumission.
+
+Écran 4 — Annuaire des employés de la direction
+Objectif : Consulter les profils rattachés à sa propre direction (cloisonnement strict — aucune donnée d'une autre direction visible).
+Composants : Recherche / filtre, tableau (nom, statut badge, zones habilitées, date d'expiration), clic → fiche employé en lecture.
+
+Écran 5 — Génération de codes d'invitation employé (suite à RF1.6)
+Objectif : Inviter un nouvel employé RAM à créer son compte et le rattacher à sa direction.
+Composants : Bouton « Inviter un employé », champ email du futur employé, génération d'un lien / code unique, historique des invitations envoyées (statut : en attente / utilisée / expirée).
+
+Écran 6 — Signalement d'incident (perte / vol / fin de contrat)
+Objectif : Déclencher une suspension immédiate de badge pour un employé de la direction.
+Composants : Sélection de l'employé concerné (au sein de la direction), sélecteur de motif (Perte / Vol / Fin de contrat — cf. RF2.5), champ date, champ commentaire, bouton Confirmer le signalement.
+États : Confirmation avant envoi (modale) / Statut mis à jour visible immédiatement après action (Suspendu — en attente de confirmation Sûreté).
+
+9.4 Employé (RAM)
+
+Écran 1 — Création de compte via invitation
+Objectif : Finaliser un compte à partir d'un lien / code transmis par le Manager de direction.
+Composants : Champ code d'invitation (pré-rempli si arrivée via lien), champs email professionnel RAM, mot de passe, confirmation.
+États : Code valide (accès au formulaire) / Code invalide ou expiré (message d'erreur bloquant).
+
+Écran 2 — Tableau de bord Employé
+Objectif : Vue personnelle du statut de badge.
+Composants :
+- Bloc central Statut du badge avec pastille visuelle et libellé clair (Aucune demande / En attente N1 / En attente N2 / Actif / Refusé / Suspendu / Révoqué / Expiré)
+- Bouton d'action contextuel selon l'état (ex. Soumettre une demande si aucune demande en cours)
+- Raccourci vers l'historique des passages
+
+Écran 3 — Formulaire de soumission de demande de badge
+Objectif : Soumettre les pièces justificatives.
+Composants : Zone d'upload pièce d'identité, zone d'upload attestations de formation (multi-fichiers), champ Justification du poste (texte ou liste déroulante), bouton Envoyer la demande.
+États : Champs obligatoires non remplis (validation bloquante avec messages) / Envoi en cours / Confirmation d'envoi.
+
+Écran 4 — Suivi du statut (timeline)
+Objectif : Visualiser la progression de la demande.
+Composants : Timeline horizontale ou verticale avec 4 étapes (Soumis → Validation N1 → Validation N2 → Badge actif), étape courante mise en évidence, affichage du motif si une étape est en Refusé.
+États : Progression normale / Blocage avec motif de refus affiché en rouge à l'étape concernée.
+
+Écran 5 — Déclaration de perte / vol
+Objectif : Signaler soi-même un incident.
+Composants : Bouton unique et visible « Signaler une perte ou un vol », modale de confirmation (Cette action suspendra immédiatement votre badge, confirmez-vous ?), boutons Confirmer / Annuler.
+États : Avant déclaration / Après déclaration (statut mis à jour immédiatement à l'écran).
+
+Écran 6 — Historique personnel des passages
+Objectif : Consulter ses propres tentatives d'accès.
+Composants : Filtre par période, tableau (date / heure, zone, résultat avec icône Autorisé / Refusé).
+États : Historique vide (nouvel employé) / Historique peuplé.
+
+9.5 Agent de Sûreté (Autorité aéroportuaire)
+
+Écran 1 — Tableau de bord Sûreté
+Objectif : Centraliser les priorités du jour.
+Composants :
+- Compteur Dossiers à instruire (avec lien direct)
+- Compteur Alertes de révocation en cours
+- Graphique : badges actifs par zone
+- Liste des dossiers les plus anciens en attente (mise en avant si délai dépassé)
+
+Écran 2 — File d'instruction des dossiers RAM (Validation N2)
+Objectif : Lister les dossiers pré-approuvés par le Manager de direction.
+Composants : Tableau (employé de la RAM, direction, date de pré-approbation N1, zones demandées), clic → fiche détail.
+
+Écran 3 — Fiche d'instruction et de décision N2
+Objectif : Instruire un dossier et statuer définitivement.
+Composants :
+- Visionneuse des pièces justificatives
+- Checklist de conformité (casier judiciaire vérifié / formations conformes / poste justifié) — cases à cocher
+- Récapitulatif des zones demandées en N1 par le Manager de direction, avec pour chaque zone un choix individuel : Valider / Refuser
+- Boutons finaux Valider le badge (génère l'UID + statut Actif) / Refuser (motif obligatoire)
+États : Checklist incomplète (bouton de validation finale désactivé tant que non cochée) / Confirmation avant validation définitive (modale, car action irréversible côté workflow) / Succès avec affichage de l'UID généré.
+
+Écran 4 — Gestion des incidents / révocations
+Objectif : Traiter les signalements de perte / vol / fin de contrat en attente.
+Composants : Liste des signalements (employé de la RAM, direction, motif, date de signalement, statut actuel Suspendu), boutons par ligne Confirmer la révocation définitive / Lever la suspension.
+États : Liste vide / Liste avec signalements à traiter (mise en évidence si urgent).
+
+Écran 5 — Consultation et filtrage de l'historique global
+Objectif : Recherche approfondie dans le journal des passages pour l'audit.
+Composants : Filtres multiples (période, direction, employé, zone, résultat), tableau paginé exportable, vue détail d'un passage (clic sur une ligne).
+
+Écran 6 — Export de rapport d'audit
+Objectif : Générer un rapport formel.
+Composants : Identique en structure à l'écran 8 du Super-Admin (sélection de critères, génération, historique des exports).
+
+Fin du document — CDC SIGBA(Royal Air Maroc)
