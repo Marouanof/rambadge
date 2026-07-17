@@ -4,12 +4,12 @@
 
 - [x] Initialiser le projet backend (Spring Boot 4.1.0, Java 21, package `ma.ram.sigba`)
 - [x] Dépendances configurées (Spring Data JPA, Security, OAuth2 Resource Server, PostgreSQL, Lombok, Validation, WebMVC)
-- [ ] Configurer la base de données relationnelle (SQL) et les connexions
+- [x] Configurer la base de données relationnelle (SQL) et les connexions
 - [ ] Mettre en place les outils de migration de base de données (ex: Flyway, Alembic, Liquibase)
-- [ ] Configurer l'intégration avec Keycloak pour l'authentification
-- [ ] Mettre en place le système de logging (journalisation des actions admin - RF3.5)
-- [ ] Configurer la gestion des erreurs et les réponses API standardisées
-- [ ] Mettre en place les hooks de validation et les middlewares de sécurité
+- [x] Configurer l'intégration avec Keycloak pour l'authentification
+- [x] Mettre en place le système de logging (journalisation des actions admin - RF3.5)
+- [x] Configurer la gestion des erreurs et les réponses API standardisées
+- [x] Mettre en place les hooks de validation et les middlewares de sécurité
 
 ---
 
