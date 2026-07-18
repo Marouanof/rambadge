@@ -7,71 +7,85 @@
 - [x] Configurer la base de données relationnelle (SQL) et les connexions
 - [ ] Mettre en place les outils de migration de base de données (ex: Flyway, Alembic, Liquibase)
 - [x] Configurer l'intégration avec Keycloak pour l'authentification
+- [x] Configurer l'admin API Keycloak (création de comptes + envoi email d'activation)
 - [x] Mettre en place le système de logging (journalisation des actions admin - RF3.5)
 - [x] Configurer la gestion des erreurs et les réponses API standardisées
 - [x] Mettre en place les hooks de validation et les middlewares de sécurité
+- [x] Service Keycloak Admin (création utilisateur, email d'activation, suppression)
 
 ---
 
 ## 2. Modèles de Données (Entités)
 
 ### 2.1 Utilisateurs & Authentification
-- [ ] Entité `User` (id, email, nom, prénom, matricule, rôle, statut, direction_id, created_at, updated_at)
-- [ ] Entité `Direction` (id, nom, code_direction, manager_id, statut, created_at, updated_at)
-- [ ] Entité `Invitation` (id, code_unique, email_destinataire, direction_id, manager_id, statut, date_expiration, created_at)
-- [ ] Mapper les rôles Keycloak (Super-Admin, Manager, Employé, Agent de Sûreté) aux rôles backend
+- [x] Entité `User` (id, email, nom, prénom, matricule, rôle, statut, direction_id, created_at, updated_at)
+- [x] Entité `Direction` (id, nom, code_direction, manager_id, statut, created_at, updated_at)
+- [x] Entité `Invitation` (id, code_unique, email_destinataire, direction_id, manager_id, statut, date_expiration, created_at)
+- [x] Mapper les rôles Keycloak (Super-Admin, Manager, Employé, Agent de Sûreté) aux rôles backend
 
 ### 2.2 Workflow de Demande
-- [ ] Entité `Demande` (id, employe_id, statut, motif_refus, created_at, updated_at)
+- [x] Entité `Demande` (id, employe_id, statut, motif_refus, created_at, updated_at)
   - Statuts : `EN_ATTENTE_N1`, `EN_ATTENTE_N2`, `VALIDEE`, `REFUSEE_N1`, `REFUSEE_N2`
-- [ ] Entité `PieceJustificative` (id, demande_id, type_piece, fichier_url, created_at)
+- [x] Entité `PieceJustificative` (id, demande_id, type_piece, fichier_url, created_at)
   - Types : `CASIER_JUDICIAIRE`, `ATTESTATIONFORMATION`, `JUSTIFICATION_POSTE`, `PIECE_IDENTITE`
-- [ ] Entité `ValidationN1` (id, demande_id, manager_id, decision, zones_demandees, justifications, date_validation, motif_refus)
-- [ ] Entité `ValidationN2` (id, demande_id, agent_id, decision, checklist_conformite, date_validation, motif_refus)
-- [ ] Entité `ZoneDemandee` (id, demande_id, zone_id, justification, statut_n1, statut_n2)
+- [x] Entité `ValidationN1` (id, demande_id, manager_id, decision, zones_demandees, justifications, date_validation, motif_refus)
+- [x] Entité `ValidationN2` (id, demande_id, agent_id, decision, checklist_conformite, date_validation, motif_refus)
+- [x] Entité `ZoneDemandee` (id, demande_id, zone_id, justification, statut_n1, statut_n2)
 
 ### 2.3 Gestion des Badges
-- [ ] Entité `Badge` (id, uid_unique, employe_id, demande_id, statut, date_emission, date_expiration, date_suspension, date_revocation, created_at, updated_at)
+- [x] Entité `Badge` (id, uid_unique, employe_id, demande_id, statut, date_emission, date_expiration, date_suspension, date_revocation, created_at, updated_at)
   - Statuts : `ACTIF`, `SUSPENDU`, `REVOQUE`, `EXPIRE`, `EN_ATTENTE`
-- [ ] Entité `Zone` (id, nom, code, description)
+- [x] Entité `Zone` (id, nom, code, description)
   - Zones : `PISTES`, `TRI_BAGAGES`, `ZONES_RESERVEES`
-- [ ] Entité `Habilitation` (id, badge_id, zone_id, date_attribution, date_revocation, statut)
+- [x] Entité `Habilitation` (id, badge_id, zone_id, date_attribution, date_revocation, statut)
   - Statuts : `ACTIVE`, `REVOQUEE`
 
 ### 2.4 Gestion des Incidents
-- [ ] Entité `Incident` (id, badge_id, signalant_id, type_incident, date_incident, commentaire, statut, date_traitement, agent_id)
+- [x] Entité `Incident` (id, badge_id, signalant_id, type_incident, date_incident, commentaire, statut, date_traitement, agent_id)
   - Types : `PERTE`, `VOL`, `FIN_CONTRAT`
   - Statuts : `SUSPENDU`, `REVOQUE`, `LEVE`
-- [ ] Entité `Notification` (id, destinataire_id, type_notification, message, lu, lien_element, created_at)
+- [x] Entité `Notification` (id, destinataire_id, type_notification, message, lu, lien_element, created_at)
   - Types : `INCIDENT_SIGNAL`, `DEMANDE_N1`, `DEMANDE_N2`, `VALIDATION`, `REFUS`, `EXPIRATION`
 
 ### 2.5 Traçabilité & Historique
-- [ ] Entité `Passage` (id, uid_badge, zone_id, employe_id, direction_id, horodatage, resultat)
+- [x] Entité `Passage` (id, uid_badge, zone_id, employe_id, direction_id, horodatage, resultat)
   - Résultats : `AUTORISE`, `REFUSE`
-- [ ] Entité `JournalAdmin` (id, auteur_id, action, cible_type, cible_id, details, horodatage)
+- [x] Entité `JournalAdmin` (id, auteur_id, action, cible_type, cible_id, details, horodatage)
 
 ---
 
 ## 3. Endpoints API REST
 
 ### 3.1 Authentification
-- [ ] `POST /api/auth/login` — Connexion via Keycloak
-- [ ] `POST /api/auth/refresh` — Rafraîchir le token
-- [ ] `POST /api/auth/logout` — Déconnexion
-- [ ] `GET /api/auth/me` — Profil utilisateur connecté
+- [x] `POST /api/auth/login` — Connexion via Keycloak
+- [x] `POST /api/auth/refresh` — Rafraîchir le token
+- [x] `POST /api/auth/logout` — Déconnexion
+- [x] `GET /api/auth/me` — Profil utilisateur connecté
 
 ### 3.2 Gestion des Directions (Super-Admin)
-- [ ] `GET /api/directions` — Lister les directions (avec filtres, pagination)
-- [ ] `POST /api/directions` — Créer une direction
-- [ ] `PUT /api/directions/:id` — Modifier une direction
-- [ ] `PATCH /api/directions/:id/disable` — Désactiver une direction
-- [ ] `GET /api/directions/:id/employes` — Employés d'une direction
+- [x] `GET /api/directions` — Lister les directions (avec filtres, pagination)
+- [x] `GET /api/directions/:id` — Détail d'une direction
+- [x] `POST /api/directions` — Créer une direction
+- [x] `PUT /api/directions/:id` — Modifier une direction
+- [x] `PATCH /api/directions/:id/disable` — Désactiver une direction
+- [x] `PATCH /api/directions/:id/enable` — Activer une direction
+- [x] `GET /api/directions/:id/employes` — Employés d'une direction
 
 ### 3.3 Gestion des Agents de Sûreté (Super-Admin)
-- [ ] `GET /api/agents-surete` — Lister les agents
-- [ ] `POST /api/agents-surete` — Créer un agent (création Keycloak)
-- [ ] `PUT /api/agents-surete/:id` — Modifier un agent
-- [ ] `PATCH /api/agents-surete/:id/revoke` — Révoquer l'accès d'un agent
+- [x] `GET /api/agents-surete` — Lister les agents
+- [x] `GET /api/agents-surete/:id` — Détail d'un agent
+- [x] `POST /api/agents-surete` — Créer un agent (création Keycloak)
+- [x] `PUT /api/agents-surete/:id` — Modifier un agent
+- [x] `PATCH /api/agents-surete/:id/revoke` — Révoquer l'accès d'un agent
+- [x] `PATCH /api/agents-surete/:id/enable` — Réactiver un agent
+
+### 3.3b Gestion des Managers (Super-Admin)
+- [x] `GET /api/managers` — Lister les managers (search, statut, pagination)
+- [x] `GET /api/managers/:id` — Détail d'un manager
+- [x] `POST /api/managers` — Créer un manager (+ assigner direction + email activation Keycloak)
+- [x] `PUT /api/managers/:id` — Modifier un manager (+ réaffectation direction)
+- [x] `PATCH /api/managers/:id/revoke` — Révoquer un manager (détache direction)
+- [x] `PATCH /api/managers/:id/enable` — Réactiver un manager
 
 ### 3.4 Gestion des Invitations (Manager)
 - [ ] `POST /api/invitations` — Générer un code d'invitation
@@ -220,7 +234,7 @@
 
 | Phase | Tâches |
 |-------|--------|
-| **Phase 1** | Infrastructure, modèles de données, authentification Keycloak, CRUD Directions & Agents |
+| **Phase 1** | Infrastructure, modèles de données, authentification Keycloak, CRUD Directions, Managers & Agents de Sûreté |
 | **Phase 2** | Workflow de demande (N1/N2), gestion des badges, invitations |
 | **Phase 3** | Incidents, notifications, habilitations par zone |
 | **Phase 4** | Historique, passages, simulation, rapports d'audit |
