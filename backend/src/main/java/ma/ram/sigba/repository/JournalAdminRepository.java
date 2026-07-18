@@ -6,6 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface JournalAdminRepository extends JpaRepository<JournalAdmin, Long> {
-    List<JournalAdmin> findByAuteurIdOrderByHorodatageDesc(Long auteurId);
+    List<JournalAdmin> findByAuteurIdOrderByCreatedAtDesc(Long auteurId);
     List<JournalAdmin> findByCibleTypeAndCibleId(String cibleType, Long cibleId);
 }

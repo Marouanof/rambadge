@@ -13,11 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class JournalAdmin {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class JournalAdmin extends BaseEntity {
 
     @Column(name = "auteur_id", nullable = false)
     private Long auteurId;
@@ -35,6 +31,6 @@ public class JournalAdmin {
     private String details;
 
     @CreationTimestamp
-    @Column(updatable = false)
+    @Column(nullable = false)
     private LocalDateTime horodatage;
 }

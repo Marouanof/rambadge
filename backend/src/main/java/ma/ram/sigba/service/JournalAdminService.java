@@ -28,7 +28,7 @@ public class JournalAdminService {
     }
 
     public List<JournalAdmin> getJournalParAuteur(Long auteurId) {
-        return journalAdminRepository.findByAuteurIdOrderByHorodatageDesc(auteurId);
+        return journalAdminRepository.findByAuteurIdOrderByCreatedAtDesc(auteurId);
     }
 
     public List<JournalAdmin> getJournalParCible(String cibleType, Long cibleId) {
