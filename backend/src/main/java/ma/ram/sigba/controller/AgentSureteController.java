@@ -1,5 +1,7 @@
 package ma.ram.sigba.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ma.ram.sigba.dto.AgentSureteRequestDTO;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/agents-surete")
 @RequiredArgsConstructor
+@Tag(name = "Agents de Sûreté", description = "Gestion des comptes agents de sûreté (Super-Admin)")
 public class AgentSureteController {
 
     private final AgentSureteService agentSureteService;
@@ -24,6 +27,7 @@ public class AgentSureteController {
 
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Lister les agents de sûreté")
     public ResponseEntity<ApiResponse<Page<AgentSureteResponseDTO>>> listerAgents(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String statut,
@@ -34,6 +38,7 @@ public class AgentSureteController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Détail d'un agent de sûreté")
     public ResponseEntity<ApiResponse<AgentSureteResponseDTO>> getAgent(@PathVariable Long id) {
         AgentSureteResponseDTO agent = agentSureteService.getAgentById(id);
         return ResponseEntity.ok(ApiResponse.ok(agent));
@@ -41,6 +46,7 @@ public class AgentSureteController {
 
     @PostMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Créer un agent de sûreté", description = "Crée le compte Keycloak + enregistre en BDD.")
     public ResponseEntity<ApiResponse<AgentSureteResponseDTO>> creerAgent(
             @Valid @RequestBody AgentSureteRequestDTO request) {
         var auteur = userService.getCurrentUser();
@@ -50,6 +56,7 @@ public class AgentSureteController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Modifier un agent de sûreté")
     public ResponseEntity<ApiResponse<AgentSureteResponseDTO>> modifierAgent(
             @PathVariable Long id,
             @Valid @RequestBody AgentSureteRequestDTO request) {
@@ -60,6 +67,7 @@ public class AgentSureteController {
 
     @PatchMapping("/{id}/revoke")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Révoquer un agent de sûreté")
     public ResponseEntity<ApiResponse<AgentSureteResponseDTO>> revoquerAgent(@PathVariable Long id) {
         var auteur = userService.getCurrentUser();
         AgentSureteResponseDTO agent = agentSureteService.revoquerAgent(id, auteur);
@@ -68,6 +76,7 @@ public class AgentSureteController {
 
     @PatchMapping("/{id}/enable")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Réactiver un agent de sûreté")
     public ResponseEntity<ApiResponse<AgentSureteResponseDTO>> reactiverAgent(@PathVariable Long id) {
         var auteur = userService.getCurrentUser();
         AgentSureteResponseDTO agent = agentSureteService.reactiverAgent(id, auteur);

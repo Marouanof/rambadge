@@ -19,7 +19,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByMatriculeAndIdNot(String matricule, Long id);
     long countByDirectionId(Long directionId);
     long countByDirectionIdAndStatut(Long directionId, UserStatut statut);
+    long countByRole(UserRole role);
     Page<User> findByDirectionId(Long directionId, Pageable pageable);
+    Page<User> findByDirectionIdAndRole(Long directionId, UserRole role, Pageable pageable);
 
     Page<User> findByRole(UserRole role, Pageable pageable);
 
@@ -36,4 +38,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(u.matricule) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<User> searchByRoleAndStatut(@Param("role") UserRole role, @Param("search") String search, @Param("statut") UserStatut statut, Pageable pageable);
+
+    @Query("SELECT u FROM User u WHERE u.role = 'EMPLOYE' AND (" +
+           "LOWER(u.nom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.prenom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.matricule) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<User> searchEmployes(@Param("search") String search, Pageable pageable);
+
+    @Query("SELECT u FROM User u WHERE u.role = 'EMPLOYE' AND u.statut = :statut AND (" +
+           "LOWER(u.nom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.prenom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.matricule) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<User> searchEmployesByStatut(@Param("search") String search, @Param("statut") UserStatut statut, Pageable pageable);
 }

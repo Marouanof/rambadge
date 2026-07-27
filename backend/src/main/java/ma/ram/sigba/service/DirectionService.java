@@ -7,7 +7,6 @@ import ma.ram.sigba.dto.DirectionResponseDTO;
 import ma.ram.sigba.dto.UserResponseDTO;
 import ma.ram.sigba.entity.Direction;
 import ma.ram.sigba.entity.User;
-import ma.ram.sigba.entity.enums.UserRole;
 import ma.ram.sigba.entity.enums.UserStatut;
 import ma.ram.sigba.exception.BusinessException;
 import ma.ram.sigba.exception.ResourceNotFoundException;
@@ -27,10 +26,12 @@ public class DirectionService {
     private final UserRepository userRepository;
     private final JournalAdminService journalAdminService;
 
+    @Transactional(readOnly = true)
     public Page<DirectionResponseDTO> listerDirections(String search, String statut, Pageable pageable) {
         return directionRepository.search(search, statut, pageable).map(this::toResponseDTO);
     }
 
+    @Transactional(readOnly = true)
     public DirectionResponseDTO getDirectionById(Long id) {
         Direction direction = directionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Direction non trouvée avec l'id : " + id));

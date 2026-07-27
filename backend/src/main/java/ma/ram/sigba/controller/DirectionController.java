@@ -1,5 +1,7 @@
 package ma.ram.sigba.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ma.ram.sigba.dto.ApiResponse;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/directions")
 @RequiredArgsConstructor
+@Tag(name = "Directions", description = "Gestion des directions / services RAM (Super-Admin)")
 public class DirectionController {
 
     private final DirectionService directionService;
@@ -26,6 +29,7 @@ public class DirectionController {
 
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Lister les directions", description = "Liste paginée des directions avec recherche et filtre par statut.")
     public ResponseEntity<ApiResponse<Page<DirectionResponseDTO>>> listerDirections(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String statut,
@@ -36,6 +40,7 @@ public class DirectionController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Détail d'une direction")
     public ResponseEntity<ApiResponse<DirectionResponseDTO>> getDirection(@PathVariable Long id) {
         DirectionResponseDTO direction = directionService.getDirectionById(id);
         return ResponseEntity.ok(ApiResponse.ok(direction));
@@ -43,6 +48,7 @@ public class DirectionController {
 
     @PostMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Créer une direction")
     public ResponseEntity<ApiResponse<DirectionResponseDTO>> creerDirection(
             @Valid @RequestBody DirectionRequestDTO request) {
         var auteur = userService.getCurrentUser();
@@ -52,6 +58,7 @@ public class DirectionController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Modifier une direction")
     public ResponseEntity<ApiResponse<DirectionResponseDTO>> modifierDirection(
             @PathVariable Long id,
             @Valid @RequestBody DirectionRequestDTO request) {
@@ -62,6 +69,7 @@ public class DirectionController {
 
     @PatchMapping("/{id}/disable")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Désactiver une direction")
     public ResponseEntity<ApiResponse<DirectionResponseDTO>> desactiverDirection(@PathVariable Long id) {
         var auteur = userService.getCurrentUser();
         DirectionResponseDTO direction = directionService.desactiverDirection(id, auteur);
@@ -70,6 +78,7 @@ public class DirectionController {
 
     @PatchMapping("/{id}/enable")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Activer une direction")
     public ResponseEntity<ApiResponse<DirectionResponseDTO>> activerDirection(@PathVariable Long id) {
         var auteur = userService.getCurrentUser();
         DirectionResponseDTO direction = directionService.activerDirection(id, auteur);
@@ -78,6 +87,7 @@ public class DirectionController {
 
     @GetMapping("/{id}/employes")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Employés d'une direction")
     public ResponseEntity<ApiResponse<Page<UserResponseDTO>>> listerEmployes(
             @PathVariable Long id,
             @PageableDefault(size = 20) Pageable pageable) {

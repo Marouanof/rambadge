@@ -2,6 +2,9 @@ package ma.ram.sigba.dto;
 
 import lombok.*;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,4 +20,7 @@ public class UserResponseDTO {
     private String role;
     private String statut;
     private String directionNom;
+    private Long badgeId;
+    private LocalDateTime dateExpirationBadge;
+    private List<String> zonesHabilitees;
 }
