@@ -27,8 +27,17 @@ public class ValidationN2 extends BaseEntity {
     @Column(nullable = false)
     private Decision decision;
 
-    @Column(name = "checklist_conformite", columnDefinition = "TEXT")
-    private String checklistConformite;
+    @Column(nullable = false)
+    private boolean casierJudiciaire;
+
+    @Column(nullable = false)
+    private boolean attestationFormation;
+
+    @Column(nullable = false)
+    private boolean justificationPoste;
+
+    @Column(nullable = false)
+    private boolean pieceIdentite;
 
     @Column(name = "date_validation")
     private LocalDateTime dateValidation;

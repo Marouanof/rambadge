@@ -22,6 +22,8 @@ public class AgentSureteService {
 
     private final UserRepository userRepository;
     private final JournalAdminService journalAdminService;
+    private final KeycloakService keycloakService;
+    private final EmailService emailService;
 
     public Page<AgentSureteResponseDTO> listerAgents(String search, String statut, Pageable pageable) {
         Page<User> agents;
@@ -58,6 +60,14 @@ public class AgentSureteService {
                 .build();
 
         agent = userRepository.save(agent);
+
+        try {
+            keycloakService.creerUtilisateur(request.getEmail(), request.getNom(), request.getPrenom(), request.getMatricule(), "AGENT_SURETE");
+            emailService.envoyerEmailActivationAgent(request.getEmail(), request.getPrenom(), request.getNom());
+        } catch (Exception e) {
+            log.warn("Création Keycloak échouée pour {} (user créé en BDD) : {}", request.getEmail(), e.getMessage());
+        }
+
         journalAdminService.journaliser(auteur.getId(), "CREATION_AGENT_SURETE", "User", agent.getId(),
                 "Création de l'agent de sûreté : " + agent.getPrenom() + " " + agent.getNom() + " (" + agent.getEmail() + ")");
 

@@ -11,10 +11,10 @@ import org.springframework.context.annotation.Configuration;
 @Setter
 public class KeycloakConfig {
 
-    private String serverUrl = "http://localhost:8080";
-    private String realm = "sigba-realm";
-    private String clientId = "sigba-backend";
-    private String clientSecret = "";
-    private String username = "admin";
-    private String password = "admin";
+    private String serverUrl;
+    private String realm;
+    private String clientId;
+    private String clientSecret;
+    private String username;
+    private String password;
 }

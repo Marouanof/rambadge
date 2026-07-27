@@ -4,15 +4,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.ram.sigba.dto.ManagerRequestDTO;
 import ma.ram.sigba.dto.ManagerResponseDTO;
-import ma.ram.sigba.entity.Direction;
-import ma.ram.sigba.entity.User;
+import ma.ram.sigba.dto.UserResponseDTO;
+import ma.ram.sigba.entity.*;
 import ma.ram.sigba.entity.enums.UserRole;
 import ma.ram.sigba.entity.enums.UserStatut;
+import ma.ram.sigba.entity.enums.ZoneDemandeeStatut;
 import ma.ram.sigba.exception.BusinessException;
 import ma.ram.sigba.exception.ResourceNotFoundException;
-import ma.ram.sigba.repository.DirectionRepository;
-import ma.ram.sigba.repository.UserRepository;
+import ma.ram.sigba.repository.*;
 import org.springframework.data.domain.Page;
+
+import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +28,9 @@ public class ManagerService {
     private final DirectionRepository directionRepository;
     private final JournalAdminService journalAdminService;
     private final KeycloakService keycloakService;
+    private final EmailService emailService;
+    private final BadgeRepository badgeRepository;
+    private final ZoneDemandeeRepository zoneDemandeeRepository;
 
     public Page<ManagerResponseDTO> listerManagers(String search, String statut, Pageable pageable) {
         Page<User> managers;
@@ -76,14 +81,9 @@ public class ManagerService {
 
         try {
             keycloakService.creerUtilisateur(request.getEmail(), request.getNom(), request.getPrenom(), request.getMatricule(), "MANAGER");
+            emailService.envoyerEmailActivationAgent(request.getEmail(), request.getPrenom(), request.getNom());
         } catch (Exception e) {
             log.warn("Création Keycloak échouée pour {} (user créé en BDD) : {}", request.getEmail(), e.getMessage());
-        }
-
-        try {
-            keycloakService.envoyerEmailActivation(request.getEmail());
-        } catch (Exception e) {
-            log.warn("Envoi email d'activation échoué pour {} : {}", request.getEmail(), e.getMessage());
         }
 
         journalAdminService.journaliser(auteur.getId(), "CREATION_MANAGER", "User", manager.getId(),
@@ -176,6 +176,64 @@ public class ManagerService {
 
         log.info("Manager réactivé : {} {} ({})", manager.getPrenom(), manager.getNom(), manager.getEmail());
         return toResponseDTO(manager);
+    }
+
+    public Page<UserResponseDTO> listerMesEmployes(User manager, boolean avecBadge, Pageable pageable) {
+        if (manager.getDirection() == null) {
+            throw new BusinessException("Aucune direction n'est assignée à ce manager");
+        }
+        Long directionId = manager.getDirection().getId();
+        Page<User> employesPage = userRepository.findByDirectionIdAndRole(directionId, UserRole.EMPLOYE, pageable);
+
+        if (avecBadge) {
+            List<User> employesAvecBadge = employesPage.getContent().stream()
+                    .filter(user -> badgeRepository.findByEmployeId(user.getId()).isPresent())
+                    .toList();
+            long total = employesAvecBadge.size();
+            int start = (int) pageable.getOffset();
+            int end = Math.min(start + pageable.getPageSize(), employesAvecBadge.size());
+            List<User> pageContent = start < end ? employesAvecBadge.subList(start, end) : List.of();
+            org.springframework.data.domain.Page<User> filteredPage =
+                    new org.springframework.data.domain.PageImpl<>(pageContent, pageable, total);
+            return filteredPage.map(user -> buildUserResponseDTO(user));
+        }
+
+        return employesPage.map(user -> buildUserResponseDTO(user));
+    }
+
+    private UserResponseDTO buildUserResponseDTO(User user) {
+            List<String> zonesHabilitees = List.of();
+            java.time.LocalDateTime dateExpirationBadge = null;
+            Long badgeId = null;
+
+            var badgeOpt = badgeRepository.findByEmployeId(user.getId());
+            if (badgeOpt.isPresent()) {
+                Badge badge = badgeOpt.get();
+                badgeId = badge.getId();
+                dateExpirationBadge = badge.getDateExpiration();
+
+                if (badge.getDemande() != null) {
+                    List<ZoneDemandee> zoneDemandees = zoneDemandeeRepository.findByDemandeId(badge.getDemande().getId());
+                    zonesHabilitees = zoneDemandees.stream()
+                            .filter(zd -> ZoneDemandeeStatut.VALIDEE.equals(zd.getStatutN2()))
+                            .map(zd -> zd.getZone().getNom())
+                            .toList();
+                }
+            }
+
+            return UserResponseDTO.builder()
+                    .id(user.getId())
+                    .email(user.getEmail())
+                    .nom(user.getNom())
+                    .prenom(user.getPrenom())
+                    .matricule(user.getMatricule())
+                    .role(user.getRole().name())
+                    .statut(user.getStatut().name())
+                    .directionNom(user.getDirection() != null ? user.getDirection().getNom() : null)
+                    .badgeId(badgeId)
+                    .dateExpirationBadge(dateExpirationBadge)
+                    .zonesHabilitees(zonesHabilitees)
+                    .build();
     }
 
     private User findManagerById(Long id) {
