@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import ma.ram.sigba.dto.ApiResponse;
+import ma.ram.sigba.entity.User;
 import ma.ram.sigba.entity.enums.BadgeStatut;
 import ma.ram.sigba.entity.enums.DemandeStatut;
 import ma.ram.sigba.entity.enums.IncidentStatut;

@@ -15,6 +15,7 @@ public class AgentSureteResponseDTO {
     private String nom;
     private String prenom;
     private String matricule;
+    private String poste;
     private String email;
     private String role;
     private String statut;

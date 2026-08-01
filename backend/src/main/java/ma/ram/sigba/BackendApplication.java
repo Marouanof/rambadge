@@ -23,9 +23,13 @@ public class BackendApplication {
 
             boolean existsInKeycloak = keycloakService.utilisateurExiste(email);
             if (!existsInKeycloak) {
-                keycloakService.creerUtilisateur(email, "Admin", "RAM", "SA001", "SUPER_ADMIN");
+                keycloakService.creerUtilisateur(email, "Admin", "RAM", "A001", "SUPER_ADMIN");
                 keycloakService.reinitialiserMotDePasse(email, "password");
-                keycloakService.envoyerEmailActivation(email);
+                try {
+                    keycloakService.envoyerEmailActivation(email);
+                } catch (Exception e) {
+                    System.err.println("Email d'activation non envoye (SMTP non configure) : " + e.getMessage());
+                }
                 System.out.println("Super-Admin cree dans Keycloak : " + email);
             }
 
@@ -35,6 +39,7 @@ public class BackendApplication {
                         .nom("Admin")
                         .prenom("RAM")
                         .matricule("SA001")
+                        .poste("Super Administrateur")
                         .role(UserRole.SUPER_ADMIN)
                         .build();
                 userRepository.save(admin);

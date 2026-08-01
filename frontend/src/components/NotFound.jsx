@@ -1,0 +1,51 @@
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Plane } from 'lucide-react';
+
+export default function NotFound() {
+  const navigate = useNavigate();
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-slate-900">
+      <img src="/ram_tarmac.png" alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-30" />
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/85 to-slate-900" />
+
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-12 text-center">
+        <img src="/logo_ram.png" alt="Royal Air Maroc" className="mb-8 w-44 object-contain opacity-90" />
+
+        <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-white/45">Portail Badges</span>
+
+        <h1 className="mt-3 text-[120px] font-bold leading-none tracking-tight text-[#C8102E] drop-shadow-[0_8px_40px_rgba(200,16,46,0.5)]">404</h1>
+
+        <div className="mt-4 flex items-center gap-2 text-lg font-semibold text-white">
+          <Plane className="size-5 text-[#C8102E]" />
+          Cette porte d'embarquement n'existe pas.
+        </div>
+
+        <p className="mt-2 max-w-md text-sm text-white/50">
+          La page demandée a été déplacée ou n'a jamais atterri ici. Vérifiez l'adresse ou retournez à l'accueil.
+        </p>
+
+        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <Button
+            onClick={() => navigate('/')}
+            className="h-10 bg-[#C8102E] px-6 font-semibold text-white shadow-[0_4px_20px_rgba(200,16,46,0.35)] hover:bg-[#A00D24]"
+          >
+            Retour à l'accueil
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/login')}
+            className="h-10 border-white/25 px-6 font-semibold text-white hover:bg-white/10 hover:text-white"
+          >
+            Se connecter
+          </Button>
+        </div>
+      </div>
+
+      <div className="absolute bottom-5 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap text-[11px] text-white/35">
+        Portail Badges — Royal Air Maroc
+      </div>
+    </div>
+  );
+}

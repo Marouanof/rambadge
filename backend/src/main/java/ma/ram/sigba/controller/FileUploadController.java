@@ -6,15 +6,21 @@ import lombok.RequiredArgsConstructor;
 import ma.ram.sigba.dto.ApiResponse;
 import ma.ram.sigba.service.UserService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -32,6 +38,24 @@ public class FileUploadController {
     private static final Set<String> ALLOWED_TYPES = Set.of(
             "image/jpeg", "image/png", "application/pdf"
     );
+
+    @GetMapping("/{fileName}")
+    @Operation(summary = "Télécharger un fichier")
+    public ResponseEntity<Resource> getFile(@PathVariable String fileName) {
+        try {
+            Path filePath = Paths.get(uploadDir).resolve(fileName).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+            if (!resource.exists() || !resource.isReadable()) {
+                return ResponseEntity.notFound().build();
+            }
+            Optional<MediaType> mediaType = MediaTypeFactory.getMediaType(fileName);
+            return ResponseEntity.ok()
+                    .contentType(mediaType.orElse(MediaType.APPLICATION_OCTET_STREAM))
+                    .body(resource);
+        } catch (MalformedURLException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
 
     @PostMapping("/upload")
     @PreAuthorize("hasAnyRole('EMPLOYE', 'MANAGER', 'SUPER_ADMIN', 'AGENT_SURETE')")

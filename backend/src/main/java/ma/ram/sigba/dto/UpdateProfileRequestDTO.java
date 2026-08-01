@@ -15,4 +15,6 @@ public class UpdateProfileRequestDTO {
 
     @NotBlank(message = "Le prénom est obligatoire")
     private String prenom;
+
+    private String poste;
 }

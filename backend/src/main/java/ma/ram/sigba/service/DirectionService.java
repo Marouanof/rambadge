@@ -5,11 +5,17 @@ import lombok.extern.slf4j.Slf4j;
 import ma.ram.sigba.dto.DirectionRequestDTO;
 import ma.ram.sigba.dto.DirectionResponseDTO;
 import ma.ram.sigba.dto.UserResponseDTO;
+import ma.ram.sigba.dto.DirectionImpactDTO;
 import ma.ram.sigba.entity.Direction;
 import ma.ram.sigba.entity.User;
+import ma.ram.sigba.entity.enums.BadgeStatut;
+import ma.ram.sigba.entity.enums.DemandeStatut;
+import ma.ram.sigba.entity.enums.UserRole;
 import ma.ram.sigba.entity.enums.UserStatut;
 import ma.ram.sigba.exception.BusinessException;
 import ma.ram.sigba.exception.ResourceNotFoundException;
+import ma.ram.sigba.repository.BadgeRepository;
+import ma.ram.sigba.repository.DemandeRepository;
 import ma.ram.sigba.repository.DirectionRepository;
 import ma.ram.sigba.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -24,6 +30,8 @@ public class DirectionService {
 
     private final DirectionRepository directionRepository;
     private final UserRepository userRepository;
+    private final BadgeRepository badgeRepository;
+    private final DemandeRepository demandeRepository;
     private final JournalAdminService journalAdminService;
 
     @Transactional(readOnly = true)
@@ -32,10 +40,33 @@ public class DirectionService {
     }
 
     @Transactional(readOnly = true)
+    public Page<DirectionResponseDTO> listerDirectionsDisponibles(String search, Pageable pageable) {
+        return directionRepository.findDisponibles(search, pageable).map(this::toResponseDTO);
+    }
+
+    @Transactional(readOnly = true)
     public DirectionResponseDTO getDirectionById(Long id) {
         Direction direction = directionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Direction non trouvée avec l'id : " + id));
         return toResponseDTO(direction);
+    }
+
+    @Transactional(readOnly = true)
+    public DirectionImpactDTO getDirectionImpacts(Long id) {
+        if (!directionRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Direction non trouvée avec l'id : " + id);
+        }
+
+        long employesActifs = userRepository.countByDirectionIdAndRoleAndStatut(id, UserRole.EMPLOYE, UserStatut.ACTIF);
+        long badgesActifs = badgeRepository.countByEmployeDirectionIdAndStatut(id, BadgeStatut.ACTIF);
+        long demandesEnCours = demandeRepository.countByEmployeDirectionIdAndStatut(id, DemandeStatut.EN_ATTENTE_N1)
+                + demandeRepository.countByEmployeDirectionIdAndStatut(id, DemandeStatut.EN_ATTENTE_N2);
+
+        return DirectionImpactDTO.builder()
+                .employesActifs(employesActifs)
+                .badgesActifs(badgesActifs)
+                .demandesEnCours(demandesEnCours)
+                .build();
     }
 
     @Transactional
@@ -83,11 +114,11 @@ public class DirectionService {
         Direction direction = directionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Direction non trouvée avec l'id : " + id));
 
-        if ("DESACTIVE".equals(direction.getStatut())) {
+        if ("INACTIF".equals(direction.getStatut())) {
             throw new BusinessException("La direction est déjà désactivée");
         }
 
-        direction.setStatut("DESACTIVE");
+        direction.setStatut("INACTIF");
         direction = directionRepository.save(direction);
 
         long employesActifs = userRepository.countByDirectionIdAndStatut(id, UserStatut.ACTIF);
@@ -122,12 +153,13 @@ public class DirectionService {
             throw new ResourceNotFoundException("Direction non trouvée avec l'id : " + directionId);
         }
 
-        return userRepository.findByDirectionId(directionId, pageable).map(user -> UserResponseDTO.builder()
+        return userRepository.findByDirectionIdAndRole(directionId, UserRole.EMPLOYE, pageable).map(user -> UserResponseDTO.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .nom(user.getNom())
                 .prenom(user.getPrenom())
                 .matricule(user.getMatricule())
+                .poste(user.getPoste())
                 .role(user.getRole().name())
                 .statut(user.getStatut().name())
                 .directionNom(user.getDirection() != null ? user.getDirection().getNom() : null)
@@ -136,7 +168,7 @@ public class DirectionService {
 
     private DirectionResponseDTO toResponseDTO(Direction direction) {
         User manager = direction.getManager();
-        long nombreEmployes = userRepository.countByDirectionId(direction.getId());
+        long nombreEmployes = userRepository.countByDirectionIdAndRole(direction.getId(), UserRole.EMPLOYE);
 
         return DirectionResponseDTO.builder()
                 .id(direction.getId())

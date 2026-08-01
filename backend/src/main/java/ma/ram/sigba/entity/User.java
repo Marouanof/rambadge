@@ -28,6 +28,8 @@ public class User extends BaseEntity {
     @Column(unique = true, nullable = false)
     private String matricule;
 
+    private String poste;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;

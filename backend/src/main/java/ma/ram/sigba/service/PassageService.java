@@ -9,6 +9,7 @@ import ma.ram.sigba.entity.enums.BadgeStatut;
 import ma.ram.sigba.entity.enums.HabilitationStatut;
 import ma.ram.sigba.entity.enums.ResultatPassage;
 import ma.ram.sigba.entity.enums.UserRole;
+import ma.ram.sigba.exception.BusinessException;
 import ma.ram.sigba.exception.ResourceNotFoundException;
 import ma.ram.sigba.repository.*;
 import org.springframework.data.domain.Page;
