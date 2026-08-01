@@ -17,6 +17,7 @@ public class UserResponseDTO {
     private String nom;
     private String prenom;
     private String matricule;
+    private String poste;
     private String role;
     private String statut;
     private String directionNom;

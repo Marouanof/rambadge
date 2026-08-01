@@ -9,7 +9,6 @@ import ma.ram.sigba.exception.BusinessException;
 import ma.ram.sigba.exception.ResourceNotFoundException;
 import ma.ram.sigba.repository.*;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,15 +36,14 @@ public class DemandeService {
 
     @Transactional
     public DemandeResponseDTO soumettreDemande(SoumettreDemandeRequestDTO request, User employe) {
+        if (employe.getDirection() != null && "INACTIF".equals(employe.getDirection().getStatut())) {
+            throw new BusinessException("Votre direction est désactivée, vous ne pouvez plus soumettre de demande de badge");
+        }
+
         long demandesEnCours = demandeRepository.countByEmployeIdAndStatut(employe.getId(), DemandeStatut.EN_ATTENTE_N1)
                 + demandeRepository.countByEmployeIdAndStatut(employe.getId(), DemandeStatut.EN_ATTENTE_N2);
         if (demandesEnCours > 0) {
             throw new BusinessException("Vous avez déjà une demande en cours. Veuillez attendre son traitement.");
-        }
-
-        if (badgeRepository.existsByEmployeIdAndStatutIn(employe.getId(),
-                List.of(BadgeStatut.ACTIF, BadgeStatut.SUSPENDU))) {
-            throw new BusinessException("Vous avez déjà un badge actif ou suspendu. Impossible de soumettre une nouvelle demande.");
         }
 
         Demande demande = Demande.builder()
@@ -64,13 +62,11 @@ public class DemandeService {
             pieceJustificativeRepository.save(pj);
         }
 
-        if (employe.getDirection() != null) {
-            Long demandeId = demande.getId();
-            userRepository.findByDirectionIdAndRole(employe.getDirection().getId(), UserRole.MANAGER, PageRequest.of(0, 1))
-                    .stream().findFirst().ifPresent(manager ->
-                        notificationService.creerNotification(manager, TypeNotification.DEMANDE_N1,
-                                employe.getPrenom() + " " + employe.getNom() + " a soumis une nouvelle demande de badge",
-                                "/demandes/" + demandeId));
+        User manager = employe.getDirection() != null ? employe.getDirection().getManager() : null;
+        if (manager != null) {
+            notificationService.creerNotification(manager, TypeNotification.DEMANDE_N1,
+                    "Nouvelle demande de badge de " + employe.getPrenom() + " " + employe.getNom() + " en attente de validation",
+                    "/validations");
         }
 
         log.info("Demande {} soumise par {} {}", demande.getId(), employe.getPrenom(), employe.getNom());
@@ -153,9 +149,12 @@ public class DemandeService {
         journalAdminService.journaliser(manager.getId(), "VALIDATION_N1", "Demande", demande.getId(),
                 "Validation N1 de la demande de " + demande.getEmploye().getPrenom() + " " + demande.getEmploye().getNom());
 
-        notificationService.creerNotification(demande.getEmploye(), TypeNotification.VALIDATION,
-                "Votre demande de badge a été validée en N1 par " + manager.getPrenom() + " " + manager.getNom(),
-                "/demandes/" + demande.getId());
+        List<User> agentsSurete = userRepository.findByRoleAndStatut(UserRole.AGENT_SURETE, UserStatut.ACTIF);
+        for (User agent : agentsSurete) {
+            notificationService.creerNotification(agent, TypeNotification.DEMANDE_N2,
+                    "Demande de badge de " + demande.getEmploye().getPrenom() + " " + demande.getEmploye().getNom() + " en attente de validation N2",
+                    "/dossiers-n2");
+        }
 
         log.info("Demande {} validée en N1 par {} {}", demande.getId(), manager.getPrenom(), manager.getNom());
         return toResponseDTO(demande);
@@ -188,8 +187,8 @@ public class DemandeService {
                 "Refus N1 de la demande de " + demande.getEmploye().getPrenom() + " " + demande.getEmploye().getNom() + " — motif : " + request.getMotifRefus());
 
         notificationService.creerNotification(demande.getEmploye(), TypeNotification.REFUS,
-                "Votre demande de badge a été refusée en N1 — motif : " + request.getMotifRefus(),
-                "/demandes/" + demande.getId());
+                "Votre demande de badge a été refusée en N1 par " + manager.getPrenom() + " " + manager.getNom() + " — Motif : " + request.getMotifRefus(),
+                "/ma-demande");
 
         log.info("Demande {} refusée en N1 par {} {}", demande.getId(), manager.getPrenom(), manager.getNom());
         return toResponseDTO(demande);
@@ -224,13 +223,6 @@ public class DemandeService {
             zoneDemandeeRepository.save(zd);
         }
 
-        badgeRepository.findByEmployeId(demande.getEmploye().getId())
-                .filter(old -> old.getStatut() == BadgeStatut.REVOQUE)
-                .ifPresent(old -> {
-                    old.setStatut(BadgeStatut.EXPIRE);
-                    badgeRepository.save(old);
-                });
-
         Badge badge = Badge.builder()
                 .uidUnique(genererUID())
                 .employe(demande.getEmploye())
@@ -261,8 +253,8 @@ public class DemandeService {
                 "Validation N2 de la demande de " + demande.getEmploye().getPrenom() + " " + demande.getEmploye().getNom() + " — Badge UID: " + badge.getUidUnique());
 
         notificationService.creerNotification(demande.getEmploye(), TypeNotification.VALIDATION,
-                "Votre badge a été émis avec succès — UID : " + badge.getUidUnique(),
-                "/demandes/" + demande.getId());
+                "Votre demande de badge a été validée. Badge " + badge.getUidUnique() + " émis avec succès.",
+                "/ma-demande");
 
         log.info("Demande {} validée en N2 — Badge {} émis", demande.getId(), badge.getUidUnique());
         return toResponseDTO(demande);
@@ -284,6 +276,12 @@ public class DemandeService {
                 .build();
         validationN2Repository.save(validation);
 
+        List<ZoneDemandee> zonesDemandees = zoneDemandeeRepository.findByDemandeId(demandeId);
+        for (ZoneDemandee zd : zonesDemandees) {
+            zd.setStatutN2(ZoneDemandeeStatut.REFUSEE);
+            zoneDemandeeRepository.save(zd);
+        }
+
         demande.setStatut(DemandeStatut.REFUSEE_N2);
         demande.setMotifRefus(request.getMotifRefus());
         demande = demandeRepository.save(demande);
@@ -292,8 +290,8 @@ public class DemandeService {
                 "Refus N2 de la demande de " + demande.getEmploye().getPrenom() + " " + demande.getEmploye().getNom() + " — motif : " + request.getMotifRefus());
 
         notificationService.creerNotification(demande.getEmploye(), TypeNotification.REFUS,
-                "Votre demande de badge a été refusée en N2 — motif : " + request.getMotifRefus(),
-                "/demandes/" + demande.getId());
+                "Votre demande de badge a été refusée en N2 par " + agent.getPrenom() + " " + agent.getNom() + " — Motif : " + request.getMotifRefus(),
+                "/ma-demande");
 
         log.info("Demande {} refusée en N2 par {} {}", demande.getId(), agent.getPrenom(), agent.getNom());
         return toResponseDTO(demande);
@@ -377,6 +375,7 @@ public class DemandeService {
                 .employeNom(employeFull.getNom())
                 .employePrenom(employeFull.getPrenom())
                 .employeEmail(employeFull.getEmail())
+                .employePoste(employeFull.getPoste())
                 .directionNom(employeFull.getDirection() != null ? employeFull.getDirection().getNom() : null)
                 .statut(demande.getStatut().name())
                 .motifRefus(demande.getMotifRefus())

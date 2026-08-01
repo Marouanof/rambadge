@@ -1,3 +1,6 @@
+-- Supprimer l'ancienne CHECK constraint (Hibernate la recréera avec PHOTO_IDENTITE)
+ALTER TABLE piece_justificative DROP CONSTRAINT IF EXISTS piece_justificative_type_piece_check;
+
 -- Zones aéroportuaires de référence (seed data, idempotent)
 INSERT INTO zone (nom, code, description, created_at, updated_at)
 VALUES

@@ -44,6 +44,10 @@ public class InvitationService {
             throw new BusinessException("Vous n'avez pas de direction assignée");
         }
 
+        if ("INACTIF".equals(auteur.getDirection().getStatut())) {
+            throw new BusinessException("Votre direction est désactivée, vous ne pouvez plus générer d'invitations");
+        }
+
         if (invitationRepository.existsByEmailDestinataireAndStatut(request.getEmailDestinataire(), InvitationStatut.EN_ATTENTE)) {
             throw new BusinessException("Une invitation en attente existe déjà pour l'email '" + request.getEmailDestinataire() + "'");
         }
@@ -100,6 +104,10 @@ public class InvitationService {
             throw new BusinessException("Cette invitation n'est plus valide (statut : " + invitation.getStatut() + ")");
         }
 
+        if (invitation.getDirection() != null && "INACTIF".equals(invitation.getDirection().getStatut())) {
+            throw new BusinessException("La direction associée à cette invitation est désactivée");
+        }
+
         if (LocalDateTime.now().isAfter(invitation.getDateExpiration())) {
             invitation.setStatut(InvitationStatut.EXPIREE);
             invitationRepository.save(invitation);
@@ -123,6 +131,7 @@ public class InvitationService {
                 .nom(request.getNom())
                 .prenom(request.getPrenom())
                 .matricule(request.getMatricule())
+                .poste(request.getPoste())
                 .role(UserRole.EMPLOYE)
                 .statut(UserStatut.ACTIF)
                 .direction(invitation.getDirection())

@@ -50,10 +50,15 @@ public class AgentSureteService {
             throw new BusinessException("Le matricule '" + request.getMatricule() + "' est déjà utilisé");
         }
 
+        String poste = request.getPoste() != null && !request.getPoste().isBlank()
+                ? request.getPoste()
+                : "Agent de sûreté aéroportuaire";
+
         User agent = User.builder()
                 .nom(request.getNom())
                 .prenom(request.getPrenom())
                 .matricule(request.getMatricule())
+                .poste(poste)
                 .email(request.getEmail())
                 .role(UserRole.AGENT_SURETE)
                 .statut(UserStatut.ACTIF)
@@ -150,6 +155,7 @@ public class AgentSureteService {
                 .nom(agent.getNom())
                 .prenom(agent.getPrenom())
                 .matricule(agent.getMatricule())
+                .poste(agent.getPoste())
                 .email(agent.getEmail())
                 .role(agent.getRole().name())
                 .statut(agent.getStatut().name())

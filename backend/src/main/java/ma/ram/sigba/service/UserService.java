@@ -40,6 +40,7 @@ public class UserService {
                 .nom(user.getNom())
                 .prenom(user.getPrenom())
                 .matricule(user.getMatricule())
+                .poste(user.getPoste())
                 .role(user.getRole().name())
                 .statut(user.getStatut().name())
                 .directionNom(user.getDirection() != null ? user.getDirection().getNom() : null)
@@ -50,6 +51,7 @@ public class UserService {
         User user = getCurrentUser();
         user.setNom(request.getNom());
         user.setPrenom(request.getPrenom());
+        user.setPoste(request.getPoste());
         userRepository.save(user);
         log.info("Profil mis à jour pour {}", user.getEmail());
         return UserResponseDTO.builder()
@@ -58,6 +60,7 @@ public class UserService {
                 .nom(user.getNom())
                 .prenom(user.getPrenom())
                 .matricule(user.getMatricule())
+                .poste(user.getPoste())
                 .role(user.getRole().name())
                 .statut(user.getStatut().name())
                 .directionNom(user.getDirection() != null ? user.getDirection().getNom() : null)
@@ -88,6 +91,7 @@ public class UserService {
                 .nom(user.getNom())
                 .prenom(user.getPrenom())
                 .matricule(user.getMatricule())
+                .poste(user.getPoste())
                 .role(user.getRole().name())
                 .statut(user.getStatut().name())
                 .directionNom(user.getDirection() != null ? user.getDirection().getNom() : null)

@@ -67,8 +67,7 @@ public class BadgeService {
     }
 
     public BadgeResponseDTO getBadgeByEmployeIdOptional(Long employeId) {
-        return badgeRepository.findFirstByEmployeIdAndStatutIn(employeId,
-                java.util.List.of(BadgeStatut.ACTIF, BadgeStatut.SUSPENDU))
+        return badgeRepository.findByEmployeId(employeId)
                 .map(this::toResponseDTO)
                 .orElse(null);
     }

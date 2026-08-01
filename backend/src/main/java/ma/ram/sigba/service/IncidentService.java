@@ -12,18 +12,19 @@ import ma.ram.sigba.entity.enums.IncidentStatut;
 import ma.ram.sigba.entity.enums.TypeIncident;
 import ma.ram.sigba.entity.enums.TypeNotification;
 import ma.ram.sigba.entity.enums.UserRole;
+import ma.ram.sigba.entity.enums.UserStatut;
 import ma.ram.sigba.exception.BusinessException;
 import ma.ram.sigba.exception.ResourceNotFoundException;
 import ma.ram.sigba.repository.BadgeRepository;
 import ma.ram.sigba.repository.IncidentRepository;
 import ma.ram.sigba.repository.UserRepository;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -32,8 +33,8 @@ public class IncidentService {
 
     private final IncidentRepository incidentRepository;
     private final BadgeRepository badgeRepository;
-    private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
     @Transactional
     public IncidentResponseDTO signalerIncident(SignalerIncidentRequestDTO request, User signalant) {
@@ -63,12 +64,12 @@ public class IncidentService {
                 .build();
         incident = incidentRepository.save(incident);
 
-        Long incidentId = incident.getId();
-        userRepository.findByRole(UserRole.AGENT_SURETE, PageRequest.of(0, 50))
-                .forEach(agent ->
-                    notificationService.creerNotification(agent, TypeNotification.INCIDENT_SIGNAL,
-                            "Incident " + type + " signalé sur le badge " + badge.getUidUnique() + " par " + signalant.getPrenom() + " " + signalant.getNom(),
-                            "/incidents/" + incidentId));
+        List<User> agentsSurete = userRepository.findByRoleAndStatut(UserRole.AGENT_SURETE, UserStatut.ACTIF);
+        for (User agent : agentsSurete) {
+            notificationService.creerNotification(agent, TypeNotification.INCIDENT_SIGNAL,
+                    "Incident " + type.name() + " signalé sur le badge " + badge.getUidUnique() + " (" + badge.getEmploye().getPrenom() + " " + badge.getEmploye().getNom() + ")",
+                    "/incidents-surete");
+        }
 
         log.info("Incident signalé : type={}, badge={}, signalant={}", type, badge.getUidUnique(), signalant.getEmail());
         return toResponseDTO(incident);
@@ -104,7 +105,6 @@ public class IncidentService {
         }
 
         Badge badge = incident.getBadge();
-        User employe = badge.getEmploye();
         badge.setStatut(BadgeStatut.REVOQUE);
         badge.setDateRevocation(LocalDateTime.now());
         badgeRepository.save(badge);
@@ -113,10 +113,6 @@ public class IncidentService {
         incident.setDateTraitement(LocalDateTime.now());
         incident.setAgent(agent);
         incidentRepository.save(incident);
-
-        notificationService.creerNotification(employe, TypeNotification.REFUS,
-                "Votre badge " + badge.getUidUnique() + " a été révoqué suite à un incident",
-                "/incidents/" + incident.getId());
 
         log.info("Incident {} confirmé → badge révoqué par {}", id, agent.getEmail());
         return toResponseDTO(incident);
@@ -140,10 +136,6 @@ public class IncidentService {
         incident.setDateTraitement(LocalDateTime.now());
         incident.setAgent(agent);
         incidentRepository.save(incident);
-
-        notificationService.creerNotification(incident.getBadge().getEmploye(), TypeNotification.VALIDATION,
-                "La suspension de votre badge " + badge.getUidUnique() + " a été levée",
-                "/incidents/" + incident.getId());
 
         log.info("Incident {} levé → badge réactivé par {}", id, agent.getEmail());
         return toResponseDTO(incident);

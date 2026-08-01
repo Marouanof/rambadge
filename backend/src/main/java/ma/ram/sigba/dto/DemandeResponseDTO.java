@@ -16,6 +16,7 @@ public class DemandeResponseDTO {
     private String employeNom;
     private String employePrenom;
     private String employeEmail;
+    private String employePoste;
     private String directionNom;
     private String statut;
     private String motifRefus;

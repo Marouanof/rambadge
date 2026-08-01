@@ -31,6 +31,7 @@ public class SecurityConfig {
             "/api/auth/**",
             "/api/invitations/*/accept",
             "/api/invitations/*",
+            "/api/files/**",
             "/actuator/health",
             "/swagger-ui/**",
             "/v3/api-docs/**",

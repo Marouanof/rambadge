@@ -15,14 +15,14 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentification", description = "Profile utilisateur et gestion du mot de passe")
+@Tag(name = "Authentification", description = "Profil utilisateur et gestion du mot de passe")
 public class AuthController {
 
     private final UserService userService;
     private final KeycloakService keycloakService;
 
     @GetMapping("/me")
-    @Operation(summary = "Profile utilisateur connecté")
+    @Operation(summary = "Profil utilisateur connecté")
     public ResponseEntity<ApiResponse<UserResponseDTO>> me() {
         UserResponseDTO profile = userService.getCurrentUserProfile();
         return ResponseEntity.ok(ApiResponse.ok(profile));

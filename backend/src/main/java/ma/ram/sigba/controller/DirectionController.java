@@ -7,8 +7,8 @@ import lombok.RequiredArgsConstructor;
 import ma.ram.sigba.dto.ApiResponse;
 import ma.ram.sigba.dto.DirectionRequestDTO;
 import ma.ram.sigba.dto.DirectionResponseDTO;
+import ma.ram.sigba.dto.DirectionImpactDTO;
 import ma.ram.sigba.dto.UserResponseDTO;
-import ma.ram.sigba.entity.enums.UserRole;
 import ma.ram.sigba.service.DirectionService;
 import ma.ram.sigba.service.UserService;
 import org.springframework.data.domain.Page;
@@ -26,6 +26,16 @@ public class DirectionController {
 
     private final DirectionService directionService;
     private final UserService userService;
+
+    @GetMapping("/disponibles")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Directions sans manager", description = "Liste des directions n'ayant pas encore de manager assigné.")
+    public ResponseEntity<ApiResponse<Page<DirectionResponseDTO>>> listerDirectionsDisponibles(
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 100) Pageable pageable) {
+        Page<DirectionResponseDTO> directions = directionService.listerDirectionsDisponibles(search, pageable);
+        return ResponseEntity.ok(ApiResponse.ok(directions));
+    }
 
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
@@ -83,6 +93,14 @@ public class DirectionController {
         var auteur = userService.getCurrentUser();
         DirectionResponseDTO direction = directionService.activerDirection(id, auteur);
         return ResponseEntity.ok(ApiResponse.ok("Direction activée avec succès", direction));
+    }
+
+    @GetMapping("/{id}/impacts")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Impacts d'une direction", description = "Compteurs d'impact (employés actifs, badges actifs, demandes en cours) pour la confirmation de désactivation.")
+    public ResponseEntity<ApiResponse<DirectionImpactDTO>> getDirectionImpacts(@PathVariable Long id) {
+        DirectionImpactDTO impacts = directionService.getDirectionImpacts(id);
+        return ResponseEntity.ok(ApiResponse.ok(impacts));
     }
 
     @GetMapping("/{id}/employes")

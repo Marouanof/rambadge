@@ -22,4 +22,9 @@ public interface DirectionRepository extends JpaRepository<Direction, Long> {
            "OR LOWER(d.codeDirection) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "AND (COALESCE(:statut, '') = '' OR d.statut = :statut)")
     Page<Direction> search(@Param("search") String search, @Param("statut") String statut, Pageable pageable);
+
+    @Query("SELECT d FROM Direction d WHERE d.manager IS NULL " +
+           "AND (COALESCE(:search, '') = '' OR LOWER(d.nom) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(d.codeDirection) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Direction> findDisponibles(@Param("search") String search, Pageable pageable);
 }

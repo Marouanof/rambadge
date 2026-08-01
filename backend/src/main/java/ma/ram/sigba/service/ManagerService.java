@@ -60,6 +60,10 @@ public class ManagerService {
         Direction direction = directionRepository.findById(request.getDirectionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Direction non trouvée avec l'id : " + request.getDirectionId()));
 
+        if ("INACTIF".equals(direction.getStatut())) {
+            throw new BusinessException("Impossible d'assigner un manager à une direction désactivée");
+        }
+
         if (direction.getManager() != null) {
             throw new BusinessException("La direction '" + direction.getNom() + "' a déjà un manager assigné");
         }
@@ -68,6 +72,7 @@ public class ManagerService {
                 .nom(request.getNom())
                 .prenom(request.getPrenom())
                 .matricule(request.getMatricule())
+                .poste(request.getPoste())
                 .email(request.getEmail())
                 .role(UserRole.MANAGER)
                 .statut(UserStatut.ACTIF)
@@ -227,6 +232,7 @@ public class ManagerService {
                     .nom(user.getNom())
                     .prenom(user.getPrenom())
                     .matricule(user.getMatricule())
+                    .poste(user.getPoste())
                     .role(user.getRole().name())
                     .statut(user.getStatut().name())
                     .directionNom(user.getDirection() != null ? user.getDirection().getNom() : null)
@@ -252,6 +258,7 @@ public class ManagerService {
                 .nom(manager.getNom())
                 .prenom(manager.getPrenom())
                 .matricule(manager.getMatricule())
+                .poste(manager.getPoste())
                 .email(manager.getEmail())
                 .role(manager.getRole().name())
                 .statut(manager.getStatut().name())

@@ -20,6 +20,8 @@ public class AgentSureteRequestDTO {
     @NotBlank(message = "Le matricule est obligatoire")
     private String matricule;
 
+    private String poste;
+
     @NotBlank(message = "L'email est obligatoire")
     @Email(message = "L'email doit être valide")
     private String email;
