@@ -17,28 +17,49 @@ export default class ErrorBoundary extends Component {
   }
 
   handleReload = () => {
-    window.location.href = '/';
+    window.location.reload();
   };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-background p-6">
-          <div className="text-center space-y-4 max-w-md">
-            <AlertTriangle className="size-12 mx-auto text-destructive" />
-            <h1 className="text-2xl font-semibold tracking-tight">Une erreur est survenue</h1>
-            <p className="text-sm text-muted-foreground">
+        <div className="relative min-h-screen overflow-hidden bg-slate-900">
+          <img src="/ram_tarmac.png" alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-30" />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/85 to-slate-900" />
+
+          <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-12 text-center">
+            <img src="/logo_ram.png" alt="Royal Air Maroc" className="mb-8 w-44 object-contain opacity-90" />
+
+            <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-white/45">Portail Badges</span>
+
+            <AlertTriangle className="mt-6 size-12 text-[#C20831]" />
+
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-white">Une erreur est survenue</h1>
+
+            <p className="mt-3 max-w-md text-sm text-white/50">
               Un problème inattendu a interrompu l'application. Rechargez la page ou revenez à l'accueil.
             </p>
-            <div className="flex justify-center gap-3">
-              <Button onClick={this.handleReload}>
+
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+              <Button
+                onClick={this.handleReload}
+                className="h-10 bg-[#C20831] px-6 font-semibold text-white shadow-[0_4px_20px_rgba(194,8,49,0.35)] hover:bg-[#C20831]/90"
+              >
                 <RotateCcw className="size-4 mr-2" />
                 Recharger
               </Button>
-              <Button variant="outline" onClick={() => { window.location.href = '/login'; }}>
-                Aller à l'accueil
+              <Button
+                variant="outline"
+                onClick={() => { window.location.href = '/login'; }}
+                className="h-10 border-white/25 bg-transparent px-6 font-semibold text-white hover:bg-white/10 hover:text-white"
+              >
+                Se connecter
               </Button>
             </div>
+          </div>
+
+          <div className="absolute bottom-5 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap text-[11px] text-white/35">
+            Portail Badges — Royal Air Maroc
           </div>
         </div>
       );

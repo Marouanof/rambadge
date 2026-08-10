@@ -22,7 +22,12 @@ export default function BadgeCard({ badge, photoUrl, employe, direction }) {
           <div className="space-y-1 min-w-0">
             <p className="text-lg font-bold leading-tight">{employe.prenom} {employe.nom}</p>
             <p className="text-sm text-muted-foreground">{direction}</p>
-            <Badge variant={badge.statut === 'ACTIF' ? 'default' : 'destructive'} className="text-xs">
+            <Badge
+              className="text-xs"
+              style={badge.statut === 'ACTIF'
+                ? { backgroundColor: '#008B60', color: '#fff' }
+                : { backgroundColor: '#C20831', color: '#fff' }}
+            >
               {badge.statut}
             </Badge>
             <p className="text-xs text-muted-foreground pt-1">

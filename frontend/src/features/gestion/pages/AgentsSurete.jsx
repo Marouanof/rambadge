@@ -3,11 +3,10 @@ import api from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, ShieldX, ShieldCheck, Search, Shield } from 'lucide-react';
+import { Plus, Pencil, ShieldX, ShieldCheck, Search, Shield, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function AgentsSurete() {
   const [agents, setAgents] = useState([]);
@@ -19,6 +18,7 @@ export default function AgentsSurete() {
   const [modal, setModal] = useState({ open: false, agent: null });
   const [form, setForm] = useState({ nom: '', prenom: '', matricule: '', email: '' });
   const [error, setError] = useState('');
+  const [confirmRevoke, setConfirmRevoke] = useState(null);
 
   const fetchAgents = async (p, s, st) => {
     setLoading(true);
@@ -58,8 +58,14 @@ export default function AgentsSurete() {
   };
 
   const handleRevoke = async (agent) => {
+    setConfirmRevoke(agent);
+  };
+
+  const confirmRevokeAgent = async () => {
+    setError('');
     try {
-      await api.patch(`/agents-surete/${agent.id}/revoke`);
+      await api.patch(`/agents-surete/${confirmRevoke.id}/revoke`);
+      setConfirmRevoke(null);
       fetchAgents(page, search, filterStatut);
     } catch (err) {
       setError(err.response?.data?.message || 'Erreur');
@@ -92,16 +98,12 @@ export default function AgentsSurete() {
           <h1 className="text-2xl font-semibold tracking-tight">Agents de sûreté</h1>
           <p className="text-sm text-muted-foreground mt-1">Gestion des agents de sécurité</p>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus className="size-4 mr-2" />
-          Ajouter
-        </Button>
       </div>
 
       <Card className="shadow-sm">
         <CardContent className="p-6">
-          <div className="flex flex-wrap gap-2 mb-4">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
               <Input
                 placeholder="Rechercher..."
@@ -110,15 +112,22 @@ export default function AgentsSurete() {
                 className="pl-8"
               />
             </div>
-            <select
-              value={filterStatut}
-              onChange={(e) => { setFilterStatut(e.target.value); setPage(0); }}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">Tous les statuts</option>
-              <option value="ACTIF">Actif</option>
-              <option value="INACTIF">Inactif</option>
-            </select>
+            <div className="relative shrink-0">
+              <select
+                value={filterStatut}
+                onChange={(e) => { setFilterStatut(e.target.value); setPage(0); }}
+                className="h-8 appearance-none rounded-md border border-input bg-background pl-3 pr-8 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Tous les statuts</option>
+                <option value="ACTIF">Actif</option>
+                <option value="INACTIF">Inactif</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
+            <Button onClick={handleCreate} className="ml-auto">
+              <Plus className="size-4 mr-2" />
+              Ajouter
+            </Button>
           </div>
 
           {error && <div className="text-destructive bg-destructive/10 p-3 rounded-md mb-4 text-sm">{error}</div>}
@@ -151,9 +160,14 @@ export default function AgentsSurete() {
                       <td className="py-3 text-sm">{a.matricule}</td>
                       <td className="py-3 text-sm text-muted-foreground">{a.email}</td>
                       <td className="py-3">
-                        <Badge variant={a.statut === 'ACTIF' ? 'default' : 'secondary'} className="text-xs">
+                        <span
+                          className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
+                          style={a.statut === 'ACTIF'
+                            ? { backgroundColor: '#008B60', color: '#fff' }
+                            : { backgroundColor: '#674459', color: '#fff' }}
+                        >
                           {a.statut}
-                        </Badge>
+                        </span>
                       </td>
                       <td className="py-3">
                         <div className="flex gap-1.5">
@@ -167,7 +181,7 @@ export default function AgentsSurete() {
                               Révoquer
                             </Button>
                           ) : (
-                            <Button size="sm" onClick={() => handleEnable(a)}>
+                            <Button size="sm" style={{ backgroundColor: '#008B60', color: '#fff' }} onClick={() => handleEnable(a)}>
                               <ShieldCheck className="size-3.5 mr-1" />
                               Activer
                             </Button>
@@ -181,17 +195,15 @@ export default function AgentsSurete() {
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-4">
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
-                Précédent
-              </Button>
-              <span className="text-sm text-muted-foreground">{page + 1} / {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
-                Suivant
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <Button variant="outline" size="icon" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Page précédente">
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground">{totalPages > 0 ? page + 1 : 0} / {totalPages}</span>
+            <Button variant="outline" size="icon" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Page suivante">
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -216,7 +228,18 @@ export default function AgentsSurete() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Email</label>
-                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={modal.agent ? undefined : (e) => setForm({ ...form, email: e.target.value })}
+                  readOnly={!!modal.agent}
+                  required
+                />
+                {modal.agent && (
+                  <p className="text-xs text-muted-foreground">
+                    L'email est l'identifiant de connexion et ne peut pas être modifié.
+                  </p>
+                )}
               </div>
             </div>
             <DialogFooter className="mt-4">
@@ -226,6 +249,28 @@ export default function AgentsSurete() {
               <Button type="submit">{modal.agent ? 'Modifier' : 'Créer'}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmRevoke} onOpenChange={(open) => { if (!open) setConfirmRevoke(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Révoquer l'agent {confirmRevoke?.prenom} {confirmRevoke?.nom}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Révoquer cet agent de sûreté désactivera son compte et son accès au système. L'agent perdra immédiatement ses droits de vérification et de traitement.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmRevoke(null)}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={confirmRevokeAgent}>
+              <ShieldX className="size-4 mr-1" />
+              Confirmer la révocation
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

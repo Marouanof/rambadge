@@ -2,13 +2,20 @@ import { useState, useEffect } from 'react';
 import api from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { ClipboardList, CheckCircle2, XCircle, Image, FileText } from 'lucide-react';
+import { ClipboardList, CheckCircle2, XCircle, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { DatePicker } from '@/components/ui/date-picker';
+
+const todayLocal = () => {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
 
 export default function ValidationsN1() {
   const [demandes, setDemandes] = useState([]);
@@ -18,7 +25,7 @@ export default function ValidationsN1() {
   const [detail, setDetail] = useState(null);
   const [zones, setZones] = useState([]);
   const [selectedZones, setSelectedZones] = useState({});
-  const [justificationsParZone, setJustificationsParZone] = useState({});
+  const [dateFinContrat, setDateFinContrat] = useState('');
   const [motifRefus, setMotifRefus] = useState('');
   const [showMotifRefus, setShowMotifRefus] = useState(false);
   const [error, setError] = useState('');
@@ -27,9 +34,8 @@ export default function ValidationsN1() {
   const fetchDemandes = async (p) => {
     setLoading(true);
     try {
-      const res = await api.get('/demandes', { params: { page: p, size: 10 } });
-      const all = res.data.data.content;
-      setDemandes(all.filter((d) => d.statut === 'EN_ATTENTE_N1'));
+      const res = await api.get('/demandes', { params: { page: p, size: 10, statut: 'EN_ATTENTE_N1' } });
+      setDemandes(res.data.data.content);
       setTotalPages(res.data.data.totalPages);
     } catch {
       setError('Erreur lors du chargement');
@@ -46,8 +52,12 @@ export default function ValidationsN1() {
 
   const openDetail = (demande) => {
     setDetail(demande);
-    setSelectedZones({});
-    setJustificationsParZone({});
+    const initial = {};
+    if (demande.zonesDemandees) {
+      demande.zonesDemandees.forEach((z) => { initial[z.zoneId] = true; });
+    }
+    setSelectedZones(initial);
+    setDateFinContrat('');
     setMotifRefus('');
     setShowMotifRefus(false);
     setError('');
@@ -60,15 +70,23 @@ export default function ValidationsN1() {
   const handleValidate = async () => {
     const selected = Object.entries(selectedZones)
       .filter(([, v]) => v)
-      .map(([id]) => ({ zoneId: parseInt(id, 10), justification: justificationsParZone[id] || '' }));
+      .map(([id]) => parseInt(id, 10));
     if (selected.length === 0) {
       setError('Selectionnez au moins une zone');
+      return;
+    }
+    if (!dateFinContrat) {
+      setError('Renseignez la date de fin de contrat');
+      return;
+    }
+    if (dateFinContrat <= todayLocal()) {
+      setError('La date de fin de contrat doit être dans le futur');
       return;
     }
     setActionLoading(true);
     setError('');
     try {
-      await api.post(`/demandes/${detail.id}/validate-n1`, { zones: selected });
+      await api.post(`/demandes/${detail.id}/validate-n1`, { zoneIds: selected, dateFinContrat });
       setDetail(null);
       fetchDemandes(page);
     } catch (err) {
@@ -118,6 +136,8 @@ export default function ValidationsN1() {
                 <thead>
                   <tr className="border-b text-left text-sm text-muted-foreground">
                     <th className="pb-3 font-medium">Employe</th>
+                    <th className="pb-3 font-medium">Poste</th>
+                    <th className="pb-3 font-medium">Zones demandees</th>
                     <th className="pb-3 font-medium">Date</th>
                     <th className="pb-3 font-medium">Actions</th>
                   </tr>
@@ -126,6 +146,12 @@ export default function ValidationsN1() {
                   {demandes.map((d) => (
                     <tr key={d.id} className="border-b last:border-0">
                       <td className="py-3 text-sm">{d.employePrenom} {d.employeNom}</td>
+                      <td className="py-3 text-sm">{d.employePoste || '-'}</td>
+                      <td className="py-3 text-sm">
+                        {d.zonesDemandees?.length
+                          ? d.zonesDemandees.map((z) => z.zoneNom).join(', ')
+                          : '-'}
+                      </td>
                       <td className="py-3 text-sm">{new Date(d.createdAt).toLocaleDateString()}</td>
                       <td className="py-3">
                         <Button variant="outline" size="sm" onClick={() => openDetail(d)}>
@@ -140,13 +166,15 @@ export default function ValidationsN1() {
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-4">
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Precedent</Button>
-              <span className="text-sm text-muted-foreground">{page + 1} / {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Suivant</Button>
-            </div>
-          )}
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <Button variant="outline" size="icon" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Page precedente">
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground">{totalPages > 0 ? page + 1 : 0} / {totalPages}</span>
+            <Button variant="outline" size="icon" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Page suivante">
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -197,22 +225,10 @@ export default function ValidationsN1() {
                 </div>
               )}
 
-              {detail.zonesDemandees && detail.zonesDemandees.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium mb-2">Zones demandees</h4>
-                  <div className="space-y-1">
-                    {detail.zonesDemandees.map((z) => (
-                      <p key={z.id} className="text-sm"><span className="font-medium">{z.zoneNom}</span> — <span className="text-muted-foreground">{z.justification || 'Pas de justification'}</span></p>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <Separator />
-
               {!showMotifRefus && (
                 <div>
-                  <h4 className="text-sm font-medium mb-2">Selectionner les zones a autoriser</h4>
+                  <h4 className="text-sm font-medium mb-1">Zones d'acces a autoriser</h4>
+                  <p className="text-xs text-muted-foreground mb-2">Zones demandees pre-cochées — cochez ou decochez pour ajuster avant la validation</p>
                   <div className="space-y-2">
                     {zones.map((z) => (
                       <div key={z.id} className="border rounded-md p-3">
@@ -227,20 +243,22 @@ export default function ValidationsN1() {
                             <span className="text-sm font-medium">{z.nom}</span>
                           </div>
                         </label>
-                        {selectedZones[z.id] && (
-                          <Textarea
-                            className="mt-2 text-sm"
-                            value={justificationsParZone[z.id] || ''}
-                            onChange={(e) => setJustificationsParZone((prev) => ({ ...prev, [z.id]: e.target.value }))}
-                            placeholder={`Justification pour ${z.nom}...`}
-                            rows={2}
-                          />
-                        )}
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+
+              <div className="border rounded-md p-3">
+                <label className="text-sm font-medium">Date de fin de contrat</label>
+                <p className="text-xs text-muted-foreground mb-2">Le badge expirera à cette date (remplace la durée par défaut d'un an)</p>
+                <DatePicker
+                  value={dateFinContrat}
+                  onChange={setDateFinContrat}
+                  disabled={{ before: new Date() }}
+                  placeholder="Selectionner une date"
+                />
+              </div>
 
               {showMotifRefus && (
                 <div>

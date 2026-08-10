@@ -1,95 +1,90 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import { Search, Globe, Eye, X } from 'lucide-react';
+import { Search, Globe, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ConsultationGlobale() {
   const [tab, setTab] = useState('demandes');
   const [data, setData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [error, setError] = useState('');
-  const [detail, setDetail] = useState(null);
   const [filters, setFilters] = useState({
     direction: '', employe: '', zone: '', dateDebut: '', dateFin: '', statut: '',
   });
   const [directions, setDirections] = useState([]);
   const [zones, setZones] = useState([]);
+  const fetchedRef = useRef(null);
+  const requestRef = useRef(0);
 
   useEffect(() => {
-    Promise.all([
-      api.get('/directions', { params: { page: 0, size: 100 } }),
-      api.get('/zones'),
-    ]).then(([dirRes, zoneRes]) => {
-      setDirections(dirRes.data.data.content || []);
-      setZones(zoneRes.data.data || []);
-    }).catch(() => {});
+    api.get('/directions', { params: { page: 0, size: 100 } })
+      .then((res) => setDirections(res.data.data.content))
+      .catch(() => {});
+    api.get('/zones')
+      .then((res) => setZones(res.data.data))
+      .catch(() => {});
   }, []);
 
-  const fetchData = async (t, p) => {
+  const fetchData = async (t, p, f) => {
+    const requestId = ++requestRef.current;
     setLoading(true);
     setError('');
     try {
+      const params = { page: p, size: 10 };
+      if (f.employe) params.search = f.employe;
+      if (f.direction) params.direction = f.direction;
+      if (f.zone) params.zone = f.zone;
+      if (f.statut) params[t === 'passages' ? 'resultat' : 'statut'] = f.statut;
+      if (f.dateDebut) params.dateDebut = f.dateDebut;
+      if (f.dateFin) params.dateFin = f.dateFin;
       let res;
-      if (t === 'demandes') res = await api.get('/demandes/toutes', { params: { page: p, size: 50 } });
-      else if (t === 'badges') res = await api.get('/badges', { params: { page: p, size: 50 } });
-      else if (t === 'passages') res = await api.get('/passages', { params: { page: p, size: 50 } });
+      if (t === 'demandes') res = await api.get('/demandes/toutes', { params });
+      else if (t === 'badges') res = await api.get('/badges', { params });
+      else if (t === 'passages') res = await api.get('/passages', { params });
+      if (requestId !== requestRef.current) return;
       setData(res.data.data.content);
       setTotalPages(res.data.data.totalPages);
     } catch {
+      if (requestId !== requestRef.current) return;
       setError('Erreur lors du chargement');
     } finally {
-      setLoading(false);
+      if (requestId === requestRef.current) setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(tab, page); }, [tab, page]);
-
   useEffect(() => {
-    let result = [...data];
-    if (filters.direction) result = result.filter((d) => (d.directionNom || '').toLowerCase().includes(filters.direction.toLowerCase()));
-    if (filters.employe) result = result.filter((d) => `${d.employePrenom || ''} ${d.employeNom || ''} ${d.employeEmail || ''}`.toLowerCase().includes(filters.employe.toLowerCase()));
-    if (filters.zone && tab === 'passages') result = result.filter((d) => (d.zoneNom || '').toLowerCase().includes(filters.zone.toLowerCase()));
-    if (filters.statut) result = result.filter((d) => {
-      const field = tab === 'passages' ? 'resultat' : 'statut';
-      return d[field] === filters.statut;
-    });
-    if (filters.dateDebut) {
-      const debut = new Date(filters.dateDebut).getTime();
-      result = result.filter((d) => {
-        const date = new Date(d.createdAt || d.horodatage || d.dateEmission).getTime();
-        return date >= debut;
-      });
+    const key = JSON.stringify({ tab, page, filters });
+    if (key !== fetchedRef.current) {
+      fetchedRef.current = key;
+      fetchData(tab, page, filters);
     }
-    if (filters.dateFin) {
-      const fin = new Date(filters.dateFin);
-      fin.setHours(23, 59, 59);
-      result = result.filter((d) => {
-        const date = new Date(d.createdAt || d.horodatage || d.dateEmission).getTime();
-        return date <= fin.getTime();
-      });
-    }
-    setFilteredData(result);
-  }, [data, filters, tab]);
+  }, [tab, page, filters]);
+
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(0);
+  };
 
   const handleTabChange = (t) => {
     setTab(t);
     setPage(0);
     setFilters({ direction: '', employe: '', zone: '', dateDebut: '', dateFin: '', statut: '' });
+    fetchedRef.current = null;
   };
 
-  const statutBadge = (statut) => {
-    const active = ['ACTIF', 'VALIDEE', 'AUTORISE'];
-    const danger = ['REVOQUE', 'REFUSEE_N1', 'REFUSEE_N2', 'REFUSE', 'SUSPENDU'];
-    return active.includes(statut) ? 'default' : danger.includes(statut) ? 'destructive' : 'secondary';
+  const statutStyle = (statut) => {
+    const green = ['ACTIF', 'VALIDEE', 'AUTORISE'];
+    const red = ['REVOQUE', 'REFUSEE_N1', 'REFUSEE_N2', 'REFUSE'];
+    const gold = ['SUSPENDU', 'EN_ATTENTE_N1', 'EN_ATTENTE_N2'];
+    if (green.includes(statut)) return { backgroundColor: '#008B60', color: '#fff' };
+    if (red.includes(statut)) return { backgroundColor: '#C20831', color: '#fff' };
+    if (gold.includes(statut)) return { backgroundColor: '#F1BE5B', color: '#5C4A00' };
+    return { backgroundColor: '#674459', color: '#fff' };
   };
 
   const statutOptions = {
@@ -121,49 +116,62 @@ export default function ConsultationGlobale() {
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-2 mb-4">
-            <div className="relative flex-1 min-w-[140px]">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
               <Input
-                placeholder="Direction..."
-                value={filters.direction}
-                onChange={(e) => setFilters({ ...filters, direction: e.target.value })}
-                className="pl-8 text-sm h-9"
+                placeholder="UID , EMPLOYE ..."
+                value={filters.employe}
+                onChange={(e) => handleFilterChange('employe', e.target.value)}
+                className="pl-8"
               />
             </div>
-            <Input
-              placeholder="Employe..."
-              value={filters.employe}
-              onChange={(e) => setFilters({ ...filters, employe: e.target.value })}
-              className="w-[160px] text-sm h-9"
-            />
+            <div className="relative shrink-0">
+              <select
+                value={filters.direction}
+                onChange={(e) => handleFilterChange('direction', e.target.value)}
+                className="h-8 appearance-none rounded-md border border-input bg-background pl-3 pr-8 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Toutes les directions</option>
+                {directions.map((d) => (<option key={d.id} value={d.nom}>{d.nom}</option>))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
             {tab === 'passages' && (
-              <Input
-                placeholder="Zone..."
-                value={filters.zone}
-                onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
-                className="w-[140px] text-sm h-9"
-              />
+              <div className="relative shrink-0">
+                <select
+                  value={filters.zone}
+                  onChange={(e) => handleFilterChange('zone', e.target.value)}
+                  className="h-8 appearance-none rounded-md border border-input bg-background pl-3 pr-8 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">Toutes les zones</option>
+                  {zones.map((z) => (<option key={z.id} value={z.nom}>{z.nom}</option>))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
             )}
-            <select
-              value={filters.statut}
-              onChange={(e) => setFilters({ ...filters, statut: e.target.value })}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">Tous les statuts</option>
-              {(statutOptions[tab] || []).map((s) => (<option key={s} value={s}>{s}</option>))}
-            </select>
+            <div className="relative shrink-0">
+              <select
+                value={filters.statut}
+                onChange={(e) => handleFilterChange('statut', e.target.value)}
+                className="h-8 appearance-none rounded-md border border-input bg-background pl-3 pr-8 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Tous les statuts</option>
+                {(statutOptions[tab] || []).map((s) => (<option key={s} value={s}>{s}</option>))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
             <input
               type="date"
               value={filters.dateDebut}
-              onChange={(e) => setFilters({ ...filters, dateDebut: e.target.value })}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              onChange={(e) => handleFilterChange('dateDebut', e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-3 text-sm"
             />
             <input
               type="date"
               value={filters.dateFin}
-              onChange={(e) => setFilters({ ...filters, dateFin: e.target.value })}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              onChange={(e) => handleFilterChange('dateFin', e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-3 text-sm"
             />
           </div>
 
@@ -171,7 +179,7 @@ export default function ConsultationGlobale() {
 
           {loading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">Chargement...</div>
-          ) : filteredData.length === 0 ? (
+          ) : data.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Globe className="size-12 mb-3 text-muted-foreground/50" />
               <p className="text-sm">Aucune donnee</p>
@@ -183,24 +191,22 @@ export default function ConsultationGlobale() {
                   <thead>
                     <tr className="border-b text-left text-sm text-muted-foreground">
                       <th className="pb-3 font-medium">Employe</th>
+                      <th className="pb-3 font-medium">Email</th>
                       <th className="pb-3 font-medium">Direction</th>
                       <th className="pb-3 font-medium">Statut</th>
+                      <th className="pb-3 font-medium">Motif</th>
                       <th className="pb-3 font-medium">Date</th>
-                      <th className="pb-3 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredData.map((d) => (
+                    {data.map((d) => (
                       <tr key={d.id} className="border-b last:border-0">
                         <td className="py-3 text-sm">{d.employePrenom} {d.employeNom}</td>
+                        <td className="py-3 text-sm">{d.employeEmail}</td>
                         <td className="py-3 text-sm">{d.directionNom}</td>
-                        <td className="py-3"><Badge variant={statutBadge(d.statut)} className="text-xs">{d.statut}</Badge></td>
+                        <td className="py-3"><Badge className="text-xs" style={statutStyle(d.statut)}>{d.statut}</Badge></td>
+                        <td className="py-3 text-sm text-muted-foreground">{d.motifRefus || '—'}</td>
                         <td className="py-3 text-sm">{new Date(d.createdAt).toLocaleDateString()}</td>
-                        <td className="py-3">
-                          <Button variant="outline" size="sm" onClick={() => setDetail({ type: 'demande', data: d })}>
-                            <Eye className="size-3.5 mr-1" />Voir
-                          </Button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -215,22 +221,16 @@ export default function ConsultationGlobale() {
                       <th className="pb-3 font-medium">Statut</th>
                       <th className="pb-3 font-medium">Emission</th>
                       <th className="pb-3 font-medium">Expiration</th>
-                      <th className="pb-3 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredData.map((b) => (
+                    {data.map((b) => (
                       <tr key={b.id} className="border-b last:border-0">
                         <td className="py-3 text-sm font-mono text-xs">{b.uidUnique}</td>
                         <td className="py-3 text-sm">{b.employePrenom} {b.employeNom}</td>
-                        <td className="py-3"><Badge variant={statutBadge(b.statut)} className="text-xs">{b.statut}</Badge></td>
+                        <td className="py-3"><Badge className="text-xs" style={statutStyle(b.statut)}>{b.statut}</Badge></td>
                         <td className="py-3 text-sm">{b.dateEmission ? new Date(b.dateEmission).toLocaleDateString() : '-'}</td>
                         <td className="py-3 text-sm">{b.dateExpiration ? new Date(b.dateExpiration).toLocaleDateString() : '-'}</td>
-                        <td className="py-3">
-                          <Button variant="outline" size="sm" onClick={() => setDetail({ type: 'badge', data: b })}>
-                            <Eye className="size-3.5 mr-1" />Voir
-                          </Button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -249,13 +249,13 @@ export default function ConsultationGlobale() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredData.map((p) => (
+                    {data.map((p) => (
                       <tr key={p.id} className="border-b last:border-0">
                         <td className="py-3 text-sm font-mono text-xs">{p.uidBadge}</td>
                         <td className="py-3 text-sm">{p.employeNom}</td>
                         <td className="py-3 text-sm">{p.directionNom}</td>
                         <td className="py-3 text-sm">{p.zoneNom}</td>
-                        <td className="py-3"><Badge variant={statutBadge(p.resultat)} className="text-xs">{p.resultat}</Badge></td>
+                        <td className="py-3"><Badge className="text-xs" style={statutStyle(p.resultat)}>{p.resultat}</Badge></td>
                         <td className="py-3 text-sm text-muted-foreground">{new Date(p.horodatage).toLocaleString()}</td>
                       </tr>
                     ))}
@@ -265,63 +265,19 @@ export default function ConsultationGlobale() {
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-4">
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Precedent</Button>
-              <span className="text-sm text-muted-foreground">{page + 1} / {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Suivant</Button>
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Page précédente">
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="text-sm text-muted-foreground">{totalPages > 0 ? page + 1 : 0} / {totalPages}</span>
+              <Button variant="outline" size="icon" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Page suivante">
+                <ChevronRight className="size-4" />
+              </Button>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
-
-      <Dialog open={!!detail} onOpenChange={(open) => { if (!open) setDetail(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {detail?.type === 'demande' && `Demande #${detail.data.id}`}
-              {detail?.type === 'badge' && `Badge #${detail.data.id}`}
-              {detail?.type === 'passage' && `Passage #${detail.data.id}`}
-            </DialogTitle>
-          </DialogHeader>
-          {detail && (
-            <div className="space-y-3 py-2">
-              {detail.type === 'demande' && (
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="col-span-2"><span className="text-muted-foreground">Employe :</span> <span className="font-medium">{detail.data.employePrenom} {detail.data.employeNom}</span></div>
-                  <div className="col-span-2"><span className="text-muted-foreground">Email :</span> <span className="font-medium">{detail.data.employeEmail}</span></div>
-                  <div><span className="text-muted-foreground">Direction :</span> <span className="font-medium">{detail.data.directionNom}</span></div>
-                  <div><span className="text-muted-foreground">Statut :</span> <Badge variant={statutBadge(detail.data.statut)} className="text-xs">{detail.data.statut}</Badge></div>
-                  <div className="col-span-2"><span className="text-muted-foreground">Date :</span> <span className="font-medium">{new Date(detail.data.createdAt).toLocaleString()}</span></div>
-                  {detail.data.motifRefus && <div className="col-span-2"><span className="text-muted-foreground">Motif refus :</span> <span className="font-medium">{detail.data.motifRefus}</span></div>}
-                </div>
-              )}
-              {detail.type === 'badge' && (
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><span className="text-muted-foreground">UID :</span> <span className="font-medium font-mono text-xs">{detail.data.uidUnique}</span></div>
-                  <div><span className="text-muted-foreground">Statut :</span> <Badge variant={statutBadge(detail.data.statut)} className="text-xs">{detail.data.statut}</Badge></div>
-                  <div className="col-span-2"><span className="text-muted-foreground">Employe :</span> <span className="font-medium">{detail.data.employePrenom} {detail.data.employeNom}</span></div>
-                  <div><span className="text-muted-foreground">Emission :</span> <span className="font-medium">{detail.data.dateEmission ? new Date(detail.data.dateEmission).toLocaleDateString() : '-'}</span></div>
-                  <div><span className="text-muted-foreground">Expiration :</span> <span className="font-medium">{detail.data.dateExpiration ? new Date(detail.data.dateExpiration).toLocaleDateString() : '-'}</span></div>
-                </div>
-              )}
-              {detail.type === 'passage' && (
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="col-span-2"><span className="text-muted-foreground">UID Badge :</span> <span className="font-medium font-mono text-xs">{detail.data.uidBadge}</span></div>
-                  <div><span className="text-muted-foreground">Employe :</span> <span className="font-medium">{detail.data.employeNom}</span></div>
-                  <div><span className="text-muted-foreground">Direction :</span> <span className="font-medium">{detail.data.directionNom}</span></div>
-                  <div><span className="text-muted-foreground">Zone :</span> <span className="font-medium">{detail.data.zoneNom}</span></div>
-                  <div><span className="text-muted-foreground">Resultat :</span> <Badge variant={statutBadge(detail.data.resultat)} className="text-xs">{detail.data.resultat}</Badge></div>
-                  <div className="col-span-2"><span className="text-muted-foreground">Date :</span> <span className="font-medium">{new Date(detail.data.horodatage).toLocaleString()}</span></div>
-                </div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetail(null)}>Fermer</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

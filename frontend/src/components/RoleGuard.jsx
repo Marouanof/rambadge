@@ -3,18 +3,22 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 const roleByPath = {
   SUPER_ADMIN: [
     '/', '/directions', '/agents', '/managers',
-    '/consultation', '/rapports', '/simulation', '/parametres',
+    '/consultation', '/simulation', '/parametres',
+    '/notifications',
   ],
   MANAGER: [
     '/', '/validations', '/employes-direction', '/invitations',
-    '/incidents', '/parametres',
+    '/incidents', '/passages-direction', '/badges-direction',
+    '/parametres', '/notifications',
   ],
   EMPLOYE: [
     '/', '/ma-demande', '/mon-historique', '/parametres',
+    '/notifications',
   ],
   AGENT_SURETE: [
     '/', '/dossiers-n2', '/incidents-surete', '/historique',
-    '/rapports-surete', '/parametres',
+    '/verification-badges',
+    '/parametres', '/notifications',
   ],
 };
 
