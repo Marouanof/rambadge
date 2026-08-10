@@ -24,6 +24,9 @@ public class ZoneDemandee extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String justification;
 
+    @Column(name = "motif_refus", columnDefinition = "TEXT")
+    private String motifRefus;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "statut_n1", nullable = false)
     @Builder.Default

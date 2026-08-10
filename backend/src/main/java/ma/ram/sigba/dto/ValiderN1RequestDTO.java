@@ -1,9 +1,11 @@
 package ma.ram.sigba.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Future;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Getter
@@ -13,17 +15,10 @@ import java.util.List;
 @Builder
 public class ValiderN1RequestDTO {
 
-    private String justifications;
+    @NotEmpty(message = "Au moins une zone doit être autorisée")
+    private List<Long> zoneIds;
 
-    @NotEmpty(message = "Au moins une zone doit être sélectionnée")
-    private List<ZoneSelectionDTO> zones;
-
-    @Getter
-    @Setter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ZoneSelectionDTO {
-        private Long zoneId;
-        private String justification;
-    }
+    @NotNull(message = "La date de fin de contrat est obligatoire")
+    @Future(message = "La date de fin de contrat doit être dans le futur")
+    private LocalDate dateFinContrat;
 }

@@ -50,6 +50,26 @@ public class NotificationService {
         return count;
     }
 
+    @Transactional
+    public void supprimerNotification(Long id, User user) {
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification non trouvée avec l'id : " + id));
+
+        if (!notification.getDestinataire().getId().equals(user.getId())) {
+            throw new ResourceNotFoundException("Notification non trouvée");
+        }
+
+        notificationRepository.delete(notification);
+        log.info("Notification {} supprimée pour {}", id, user.getEmail());
+    }
+
+    @Transactional
+    public int supprimerToutesNotifications(User user) {
+        int count = notificationRepository.deleteByDestinataireId(user.getId());
+        log.info("Toutes les notifications supprimées pour {} : {}", user.getEmail(), count);
+        return count;
+    }
+
     public void creerNotification(User destinataire, TypeNotification type, String message, String lienElement) {
         Notification notification = Notification.builder()
                 .destinataire(destinataire)

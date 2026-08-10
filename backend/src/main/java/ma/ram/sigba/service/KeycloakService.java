@@ -137,6 +137,52 @@ public class KeycloakService {
         }
     }
 
+    public void desactiverUtilisateur(String email) {
+        changerActivation(email, false);
+    }
+
+    public void activerUtilisateur(String email) {
+        changerActivation(email, true);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void changerActivation(String email, boolean enabled) {
+        String adminToken = getAdminAccessToken();
+        String userId = trouverUserIdParEmail(adminToken, email);
+        String userUrl = keycloakConfig.getServerUrl()
+                + "/admin/realms/" + keycloakConfig.getRealm()
+                + "/users/" + userId;
+
+        try {
+            Map<String, Object> userRepresentation = restClient.get()
+                    .uri(userUrl)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                    .retrieve()
+                    .body(Map.class);
+
+            userRepresentation.put("enabled", enabled);
+
+            restClient.put()
+                    .uri(userUrl)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(userRepresentation)
+                    .retrieve()
+                    .toBodilessEntity();
+
+            log.info("Utilisateur Keycloak {} : enabled={}", email, enabled);
+
+            if (!enabled) {
+                deconnecterUtilisateur(email);
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Erreur lors de la modification de l'activation du compte Keycloak {}: {}", email, e.getMessage());
+            throw new BusinessException("Erreur lors de la modification de l'activation du compte : " + e.getMessage());
+        }
+    }
+
     public void supprimerUtilisateur(String email) {
         String adminToken = getAdminAccessToken();
 

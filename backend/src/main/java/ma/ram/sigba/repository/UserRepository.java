@@ -55,4 +55,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(u.matricule) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<User> searchEmployesByStatut(@Param("search") String search, @Param("statut") UserStatut statut, Pageable pageable);
+
+    @Query("SELECT u FROM User u WHERE u.direction.id = :directionId AND u.role = :role AND " +
+           "(:statut IS NULL OR u.statut = :statut) AND " +
+           "(:poste IS NULL OR u.poste = :poste) AND " +
+           "(:avecBadge = false OR EXISTS (SELECT 1 FROM Badge b WHERE b.employe = u)) AND (" +
+           "LOWER(u.nom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.prenom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.matricule) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<User> searchByDirectionAndRole(@Param("directionId") Long directionId, @Param("role") UserRole role,
+            @Param("search") String search, @Param("statut") UserStatut statut,
+            @Param("poste") String poste, @Param("avecBadge") boolean avecBadge, Pageable pageable);
+
+    @Query("SELECT DISTINCT u.poste FROM User u WHERE u.direction.id = :directionId AND u.role = :role " +
+           "AND u.poste IS NOT NULL ORDER BY u.poste")
+    List<String> findDistinctPostesByDirectionIdAndRole(@Param("directionId") Long directionId, @Param("role") UserRole role);
 }

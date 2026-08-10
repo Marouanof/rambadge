@@ -30,6 +30,8 @@ public class User extends BaseEntity {
 
     private String poste;
 
+    private String photoUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;

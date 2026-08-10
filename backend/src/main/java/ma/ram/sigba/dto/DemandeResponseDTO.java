@@ -2,6 +2,7 @@ package ma.ram.sigba.dto;
 
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -20,6 +21,7 @@ public class DemandeResponseDTO {
     private String directionNom;
     private String statut;
     private String motifRefus;
+    private LocalDate dateFinContrat;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<PieceJustificativeResponseDTO> pieces;

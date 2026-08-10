@@ -18,6 +18,8 @@ public class BadgeResponseDTO {
     private String employeNom;
     private String employePrenom;
     private String employeEmail;
+    private String employeMatricule;
+    private String directionNom;
     private Long demandeId;
     private String statut;
     private LocalDateTime dateEmission;

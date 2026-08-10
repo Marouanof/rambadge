@@ -7,20 +7,25 @@ import ma.ram.sigba.dto.InvitationRequestDTO;
 import ma.ram.sigba.dto.InvitationResponseDTO;
 import ma.ram.sigba.entity.Direction;
 import ma.ram.sigba.entity.Invitation;
+import ma.ram.sigba.entity.Poste;
 import ma.ram.sigba.entity.User;
 import ma.ram.sigba.entity.enums.InvitationStatut;
+import ma.ram.sigba.entity.enums.TypeNotification;
 import ma.ram.sigba.entity.enums.UserRole;
 import ma.ram.sigba.entity.enums.UserStatut;
 import ma.ram.sigba.exception.BusinessException;
 import ma.ram.sigba.exception.ResourceNotFoundException;
 import ma.ram.sigba.repository.InvitationRepository;
+import ma.ram.sigba.repository.PosteRepository;
 import ma.ram.sigba.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -30,9 +35,10 @@ public class InvitationService {
 
     private final InvitationRepository invitationRepository;
     private final UserRepository userRepository;
-    private final JournalAdminService journalAdminService;
+    private final PosteRepository posteRepository;
     private final EmailService emailService;
     private final KeycloakService keycloakService;
+    private final NotificationService notificationService;
 
     @Transactional
     public InvitationResponseDTO genererInvitation(InvitationRequestDTO request, User auteur) {
@@ -76,16 +82,14 @@ public class InvitationService {
         emailService.envoyerEmailInvitation(
                 request.getEmailDestinataire(), codeUnique, emetteurNom, auteur.getDirection().getNom());
 
-        journalAdminService.journaliser(auteur.getId(), "CREATION_INVITATION", "Invitation", invitation.getId(),
-                "Invitation générée pour " + request.getEmailDestinataire() + " — Code : " + codeUnique + " — Direction : " + auteur.getDirection().getNom());
-
         log.info("Invitation générée : {} → {} (code: {})", auteur.getEmail(), request.getEmailDestinataire(), codeUnique);
         return toResponseDTO(invitation);
     }
 
     @Transactional(readOnly = true)
     public Page<InvitationResponseDTO> listerInvitations(String search, String statut, User auteur, Pageable pageable) {
-        return invitationRepository.searchByEmetteur(auteur.getId(), search, statut, pageable).map(this::toResponseDTO);
+        InvitationStatut statutEnum = (statut == null || statut.isBlank()) ? null : InvitationStatut.valueOf(statut);
+        return invitationRepository.searchByEmetteur(auteur.getId(), search, statutEnum, pageable).map(this::toResponseDTO);
     }
 
     @Transactional(readOnly = true)
@@ -122,6 +126,12 @@ public class InvitationService {
             throw new BusinessException("Le matricule '" + request.getMatricule() + "' est déjà utilisé");
         }
 
+        List<String> postesDirection = posteRepository.findByDirectionIdOrderByNomAsc(invitation.getDirection().getId())
+                .stream().map(poste -> poste.getNom().toLowerCase()).toList();
+        if (!postesDirection.isEmpty() && !postesDirection.contains(request.getPoste().toLowerCase())) {
+            throw new BusinessException("Le poste '" + request.getPoste() + "' n'appartient pas à la direction de l'invitation");
+        }
+
         String email = invitation.getEmailDestinataire();
         keycloakService.creerUtilisateur(email, request.getNom(), request.getPrenom(), request.getMatricule(), "EMPLOYE");
         keycloakService.reinitialiserMotDePasse(email, request.getMotDePasse());
@@ -140,6 +150,11 @@ public class InvitationService {
 
         invitation.setStatut(InvitationStatut.ACCEPTEE);
         invitation = invitationRepository.save(invitation);
+
+        User emetteur = invitation.getEmetteur();
+        notificationService.creerNotification(emetteur, TypeNotification.INVITATION_ACCEPTEE,
+                "Votre invitation pour " + email + " a été acceptée. Le compte employé est créé.",
+                "/employes-direction");
 
         log.info("Invitation acceptée : code {} par {} — compte créé", code, email);
         return toResponseDTO(invitation);
@@ -161,11 +176,26 @@ public class InvitationService {
         invitation.setStatut(InvitationStatut.REVOQUEE);
         invitation = invitationRepository.save(invitation);
 
-        journalAdminService.journaliser(auteur.getId(), "REVOCATION_INVITATION", "Invitation", invitation.getId(),
-                "Invitation révoquée pour " + invitation.getEmailDestinataire());
-
         log.info("Invitation révoquée : {} pour {}", id, invitation.getEmailDestinataire());
         return toResponseDTO(invitation);
+    }
+
+    @Scheduled(fixedDelay = 60000, initialDelay = 60000)
+    @Transactional
+    public void expirerInvitations() {
+        List<Invitation> expirees = invitationRepository.findByStatutAndDateExpirationBefore(
+                InvitationStatut.EN_ATTENTE, LocalDateTime.now());
+        for (Invitation invitation : expirees) {
+            invitation.setStatut(InvitationStatut.EXPIREE);
+            invitationRepository.save(invitation);
+
+            notificationService.creerNotification(invitation.getEmetteur(), TypeNotification.INVITATION_EXPIREE,
+                    "Votre invitation pour " + invitation.getEmailDestinataire() + " a expiré. Pensez à relancer ou réinviter.",
+                    "/invitations");
+        }
+        if (!expirees.isEmpty()) {
+            log.info("{} invitation(s) expirée(s) automatiquement", expirees.size());
+        }
     }
 
     private InvitationResponseDTO toResponseDTO(Invitation invitation) {
@@ -178,6 +208,8 @@ public class InvitationService {
                 .emailDestinataire(invitation.getEmailDestinataire())
                 .directionId(direction != null ? direction.getId() : null)
                 .directionNom(direction != null ? direction.getNom() : null)
+                .postes(direction != null ? posteRepository.findByDirectionIdOrderByNomAsc(direction.getId())
+                        .stream().map(Poste::getNom).toList() : null)
                 .emetteurNom(emetteur != null ? emetteur.getPrenom() + " " + emetteur.getNom() : null)
                 .emetteurEmail(emetteur != null ? emetteur.getEmail() : null)
                 .statut(invitation.getStatut().name())

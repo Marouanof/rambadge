@@ -3,6 +3,7 @@ package ma.ram.sigba.dto;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -16,6 +17,7 @@ public class InvitationResponseDTO {
     private String emailDestinataire;
     private Long directionId;
     private String directionNom;
+    private List<String> postes;
     private String emetteurNom;
     private String emetteurEmail;
     private String statut;

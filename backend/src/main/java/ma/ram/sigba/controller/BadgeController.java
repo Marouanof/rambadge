@@ -5,14 +5,21 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import ma.ram.sigba.dto.ApiResponse;
 import ma.ram.sigba.dto.BadgeResponseDTO;
+import ma.ram.sigba.entity.enums.BadgeStatut;
 import ma.ram.sigba.service.BadgeService;
 import ma.ram.sigba.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @RestController
 @RequestMapping("/api/badges")
@@ -25,14 +32,23 @@ public class BadgeController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MANAGER', 'AGENT_SURETE')")
-    @Operation(summary = "Lister les badges", description = "SUPER_ADMIN=tous, MANAGER/AGENT=su direction")
+    @Operation(summary = "Lister les badges", description = "SUPER_ADMIN=tous, MANAGER/AGENT=su direction — filtres serveur (employé, direction, statut, période)")
     public ResponseEntity<ApiResponse<Page<BadgeResponseDTO>>> listerBadges(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String direction,
             @RequestParam(required = false) String statut,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFin,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         var user = userService.getCurrentUser();
-        Page<BadgeResponseDTO> badges = (statut != null && !statut.isBlank())
-                ? badgeService.listerBadgesParStatut(statut, pageable)
-                : badgeService.listerBadges(user, pageable);
+        BadgeStatut badgeStatut = null;
+        if (statut != null && !statut.isBlank()) {
+            badgeStatut = BadgeStatut.valueOf(statut.toUpperCase());
+        }
+        LocalDateTime debut = dateDebut != null ? dateDebut.atStartOfDay() : null;
+        LocalDateTime fin = dateFin != null ? dateFin.atTime(LocalTime.MAX) : null;
+        Page<BadgeResponseDTO> badges = badgeService.listerBadgesFiltres(
+                user, search, direction, badgeStatut, debut, fin, pageable);
         return ResponseEntity.ok(ApiResponse.ok(badges));
     }
 

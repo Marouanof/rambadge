@@ -5,6 +5,7 @@ import lombok.*;
 import ma.ram.sigba.entity.enums.IncidentStatut;
 import ma.ram.sigba.entity.enums.TypeIncident;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -33,6 +34,9 @@ public class Incident extends BaseEntity {
 
     @Column(columnDefinition = "TEXT")
     private String commentaire;
+
+    @Column(name = "date_fin_contrat")
+    private LocalDate dateFinContrat;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

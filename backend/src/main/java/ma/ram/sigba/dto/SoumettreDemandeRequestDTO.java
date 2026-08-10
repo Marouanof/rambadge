@@ -16,6 +16,9 @@ public class SoumettreDemandeRequestDTO {
     @NotEmpty(message = "Au moins une pièce justificative est requise")
     private List<PieceJustificativeDTO> pieces;
 
+    @NotEmpty(message = "Au moins une zone doit être sélectionnée")
+    private List<Long> zoneIds;
+
     @Getter
     @Setter
     @NoArgsConstructor

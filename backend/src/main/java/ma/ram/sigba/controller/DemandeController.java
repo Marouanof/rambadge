@@ -5,15 +5,20 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ma.ram.sigba.dto.*;
+import ma.ram.sigba.entity.enums.DemandeStatut;
 import ma.ram.sigba.service.DemandeService;
 import ma.ram.sigba.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @RestController
@@ -37,20 +42,47 @@ public class DemandeController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('EMPLOYE', 'MANAGER', 'AGENT_SURETE', 'SUPER_ADMIN')")
-    @Operation(summary = "Lister les demandes", description = "Selon le rôle : employé=les siennes, manager=sa direction, sûreté=à instruire (N2).")
+    @Operation(summary = "Lister les demandes", description = "Selon le rôle : employé=les siennes, manager=sa direction (filtre statut optionnel), sûreté=à instruire (N2).")
     public ResponseEntity<ApiResponse<Page<DemandeResponseDTO>>> listerDemandes(
+            @RequestParam(required = false) String statut,
             @PageableDefault(size = 20) Pageable pageable) {
         var user = userService.getCurrentUser();
-        Page<DemandeResponseDTO> demandes = demandeService.listerDemandes(user, pageable);
+        DemandeStatut demandeStatut = null;
+        if (statut != null && !statut.isBlank()) {
+            demandeStatut = DemandeStatut.valueOf(statut.toUpperCase());
+        }
+        Page<DemandeResponseDTO> demandes = demandeService.listerDemandes(user, demandeStatut, pageable);
+        return ResponseEntity.ok(ApiResponse.ok(demandes));
+    }
+
+    @GetMapping("/en-attente-n1")
+    @PreAuthorize("hasRole('MANAGER')")
+    @Operation(summary = "Demandes en attente N1 du manager", description = "Demandes de la direction en attente de validation N1, les plus anciennes d'abord — pour le tableau de bord.")
+    public ResponseEntity<ApiResponse<Page<DemandeResponseDTO>>> listerDemandesEnAttenteN1(
+            @PageableDefault(size = 5) Pageable pageable) {
+        var manager = userService.getCurrentUser();
+        Page<DemandeResponseDTO> demandes = demandeService.listerDemandesEnAttenteN1Manager(manager, pageable);
         return ResponseEntity.ok(ApiResponse.ok(demandes));
     }
 
     @GetMapping("/toutes")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    @Operation(summary = "Toutes les demandes", description = "Consultation globale — SUPER_ADMIN uniquement, sans filtre par rôle.")
+    @Operation(summary = "Toutes les demandes", description = "Consultation globale — SUPER_ADMIN uniquement, filtres serveur (employé, direction, statut, période).")
     public ResponseEntity<ApiResponse<Page<DemandeResponseDTO>>> listerToutesLesDemandes(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) String statut,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFin,
             @PageableDefault(size = 50) Pageable pageable) {
-        Page<DemandeResponseDTO> demandes = demandeService.listerToutesLesDemandes(pageable);
+        DemandeStatut demandeStatut = null;
+        if (statut != null && !statut.isBlank()) {
+            demandeStatut = DemandeStatut.valueOf(statut.toUpperCase());
+        }
+        LocalDateTime debut = dateDebut != null ? dateDebut.atStartOfDay() : null;
+        LocalDateTime fin = dateFin != null ? dateFin.atTime(LocalTime.MAX) : null;
+        Page<DemandeResponseDTO> demandes = demandeService.listerToutesLesDemandes(
+                search, direction, demandeStatut, debut, fin, pageable);
         return ResponseEntity.ok(ApiResponse.ok(demandes));
     }
 

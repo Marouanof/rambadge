@@ -17,4 +17,6 @@ public class UpdateProfileRequestDTO {
     private String prenom;
 
     private String poste;
+
+    private String photoUrl;
 }

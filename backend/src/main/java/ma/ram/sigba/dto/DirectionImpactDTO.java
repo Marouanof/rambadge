@@ -12,4 +12,5 @@ public class DirectionImpactDTO {
     private long employesActifs;
     private long badgesActifs;
     private long demandesEnCours;
+    private long demandesEnAttenteN1;
 }

@@ -9,6 +9,7 @@ import ma.ram.sigba.entity.Habilitation;
 import ma.ram.sigba.entity.User;
 import ma.ram.sigba.entity.enums.BadgeStatut;
 import ma.ram.sigba.entity.enums.HabilitationStatut;
+import ma.ram.sigba.entity.enums.TypeNotification;
 import ma.ram.sigba.entity.enums.UserRole;
 import ma.ram.sigba.exception.BusinessException;
 import ma.ram.sigba.exception.ResourceNotFoundException;
@@ -28,6 +29,7 @@ public class BadgeService {
 
     private final BadgeRepository badgeRepository;
     private final HabilitationRepository habilitationRepository;
+    private final NotificationService notificationService;
 
     public Page<BadgeResponseDTO> listerBadges(User currentUser, Pageable pageable) {
         Page<Badge> badges;
@@ -46,6 +48,21 @@ public class BadgeService {
     public Page<BadgeResponseDTO> listerBadgesParStatut(String statut, Pageable pageable) {
         BadgeStatut badgeStatut = BadgeStatut.valueOf(statut.toUpperCase());
         return badgeRepository.findByStatut(badgeStatut, pageable).map(this::toResponseDTO);
+    }
+
+    public Page<BadgeResponseDTO> listerBadgesFiltres(User currentUser, String search, String direction,
+                                                      BadgeStatut statut, LocalDateTime dateDebut, LocalDateTime dateFin,
+                                                      Pageable pageable) {
+        String sch = (search == null || search.isBlank()) ? null : search.trim();
+        String dir = (direction == null || direction.isBlank()) ? null : direction.trim();
+        Page<Badge> badges;
+        if (currentUser.getRole() == UserRole.MANAGER) {
+            String directionManager = currentUser.getDirection() != null ? currentUser.getDirection().getNom() : null;
+            badges = badgeRepository.search(sch, directionManager, statut, dateDebut, dateFin, pageable);
+        } else {
+            badges = badgeRepository.search(sch, dir, statut, dateDebut, dateFin, pageable);
+        }
+        return badges.map(this::toResponseDTO);
     }
 
     public BadgeResponseDTO getBadgeById(Long id) {
@@ -85,6 +102,10 @@ public class BadgeService {
         badge.setDateSuspension(LocalDateTime.now());
         badgeRepository.save(badge);
 
+        notificationService.creerNotification(badge.getEmploye(), TypeNotification.SUSPENSION,
+                "Votre badge " + badge.getUidUnique() + " a été suspendu. Votre accès est bloqué jusqu'à nouvel ordre.",
+                "/mon-historique");
+
         log.info("Badge {} suspendu (UID: {})", id, badge.getUidUnique());
         return toResponseDTO(badge);
     }
@@ -101,6 +122,10 @@ public class BadgeService {
         badge.setStatut(BadgeStatut.ACTIF);
         badge.setDateSuspension(null);
         badgeRepository.save(badge);
+
+        notificationService.creerNotification(badge.getEmploye(), TypeNotification.REACTIVATION,
+                "Votre badge " + badge.getUidUnique() + " a été réactivé. Vos accès sont rétablis.",
+                "/mon-historique");
 
         log.info("Badge {} réactivé (UID: {})", id, badge.getUidUnique());
         return toResponseDTO(badge);
@@ -128,6 +153,10 @@ public class BadgeService {
         });
         habilitationRepository.saveAll(habilitationRepository.findByBadgeId(id));
 
+        notificationService.creerNotification(badge.getEmploye(), TypeNotification.REVOCATION,
+                "Votre badge " + badge.getUidUnique() + " a été révoqué définitivement. Vos accès sont annulés.",
+                "/mon-historique");
+
         log.info("Badge {} révoqué (UID: {}) — {} habilitations révoquées", id, badge.getUidUnique(),
                 habilitationRepository.findByBadgeId(id).size());
         return toResponseDTO(badge);
@@ -147,6 +176,10 @@ public class BadgeService {
                 });
                 habilitationRepository.saveAll(habilitationRepository.findByBadgeId(badge.getId()));
 
+                notificationService.creerNotification(badge.getEmploye(), TypeNotification.EXPIRATION,
+                        "Votre badge " + badge.getUidUnique() + " a expiré. Pensez à demander un renouvellement.",
+                        "/mon-historique");
+
                 log.info("Badge {} expiré (UID: {})", badge.getId(), badge.getUidUnique());
             }
         });
@@ -160,6 +193,10 @@ public class BadgeService {
                 .employeNom(badge.getEmploye().getNom())
                 .employePrenom(badge.getEmploye().getPrenom())
                 .employeEmail(badge.getEmploye().getEmail())
+                .employeMatricule(badge.getEmploye().getMatricule())
+                .directionNom(badge.getEmploye().getDirection() != null
+                        ? badge.getEmploye().getDirection().getNom()
+                        : null)
                 .demandeId(badge.getDemande().getId())
                 .statut(badge.getStatut().name())
                 .dateEmission(badge.getDateEmission())
