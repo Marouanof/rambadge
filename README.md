@@ -5,13 +5,13 @@
 </p>
 
 <p align="center">
-  <a href="#"><img src="https://img.shields.io/badge/Java-21-E41F1F" alt="Java 21"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F" alt="Spring Boot 4.1"></a>
-  <a href="#"><img src="https://img.shields.io/badge/React-19-61DAFB" alt="React 19"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Vite-8-646CFF" alt="Vite 8"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4" alt="Tailwind CSS 4"></a>
-  <a href="#"><img src="https://img.shields.io/badge/PostgreSQL-15-4169E1" alt="PostgreSQL 15"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Keycloak-26-3A3A3A" alt="Keycloak 26"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Java-21-E41F1F?logo=openjdk&logoColor=white" alt="Java 21"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?logo=spring&logoColor=white" alt="Spring Boot 4.1"></a>
+  <a href="#"><img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React 19"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white" alt="Vite 8"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS 4"></a>
+  <a href="#"><img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 15"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Keycloak-26-3A3A3A?logo=keycloak&logoColor=white" alt="Keycloak 26"></a>
 </p>
 
 Gestion du cycle de vie complet des badges d'accès des salariés : demande,
