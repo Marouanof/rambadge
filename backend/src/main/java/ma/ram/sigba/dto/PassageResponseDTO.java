@@ -17,6 +17,7 @@ public class PassageResponseDTO {
     private String zoneNom;
     private Long employeId;
     private String employeNom;
+    private String employeMatricule;
     private String directionNom;
     private LocalDateTime horodatage;
     private String resultat;

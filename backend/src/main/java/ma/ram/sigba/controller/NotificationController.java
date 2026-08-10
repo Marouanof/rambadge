@@ -59,4 +59,22 @@ public class NotificationController {
         int count = notificationService.marquerToutCommeLu(user);
         return ResponseEntity.ok(ApiResponse.ok(count + " notification(s) marquée(s) comme lue(s)", count));
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Supprimer une notification")
+    public ResponseEntity<ApiResponse<Void>> supprimerNotification(@PathVariable Long id) {
+        var user = userService.getCurrentUser();
+        notificationService.supprimerNotification(id, user);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
+    @DeleteMapping
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Supprimer toutes les notifications")
+    public ResponseEntity<ApiResponse<Integer>> supprimerToutesNotifications() {
+        var user = userService.getCurrentUser();
+        int count = notificationService.supprimerToutesNotifications(user);
+        return ResponseEntity.ok(ApiResponse.ok(count + " notification(s) supprimée(s)", count));
+    }
 }

@@ -18,10 +18,12 @@ public class UserResponseDTO {
     private String prenom;
     private String matricule;
     private String poste;
+    private String photoUrl;
     private String role;
     private String statut;
     private String directionNom;
     private Long badgeId;
+    private String badgeUid;
     private LocalDateTime dateExpirationBadge;
     private List<String> zonesHabilitees;
 }

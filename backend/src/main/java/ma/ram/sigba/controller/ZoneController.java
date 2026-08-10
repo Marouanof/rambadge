@@ -23,8 +23,8 @@ public class ZoneController {
     private final ZoneService zoneService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MANAGER', 'AGENT_SURETE')")
-    @Operation(summary = "Lister les zones disponibles", description = "Pistes, Tri Bagages, Zones réservées — utilisé pour la sélection lors des validations N1/N2.")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'EMPLOYE', 'MANAGER', 'AGENT_SURETE')")
+    @Operation(summary = "Lister les zones disponibles", description = "Pistes, Tri Bagages, Zones réservées — utilisé pour la sélection à la soumission de la demande et lors des validations N1/N2.")
     public ResponseEntity<ApiResponse<List<ZoneResponseDTO>>> listerZones() {
         List<ZoneResponseDTO> zones = zoneService.listerZones();
         return ResponseEntity.ok(ApiResponse.ok(zones));

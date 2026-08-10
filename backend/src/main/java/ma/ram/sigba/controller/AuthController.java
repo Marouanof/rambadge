@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import ma.ram.sigba.dto.*;
 import ma.ram.sigba.exception.BusinessException;
 import ma.ram.sigba.service.KeycloakService;
+import ma.ram.sigba.service.EmailService;
 import ma.ram.sigba.service.UserService;
 import ma.ram.sigba.util.SecureTokenUtil;
 import org.springframework.http.ResponseEntity;
@@ -20,12 +21,26 @@ public class AuthController {
 
     private final UserService userService;
     private final KeycloakService keycloakService;
+    private final EmailService emailService;
 
     @GetMapping("/me")
     @Operation(summary = "Profil utilisateur connecté")
     public ResponseEntity<ApiResponse<UserResponseDTO>> me() {
         UserResponseDTO profile = userService.getCurrentUserProfile();
         return ResponseEntity.ok(ApiResponse.ok(profile));
+    }
+
+    @GetMapping("/preferences")
+    @Operation(summary = "Préférences de l'utilisateur connecté")
+    public ResponseEntity<ApiResponse<UserPreferencesDTO>> getPreferences() {
+        return ResponseEntity.ok(ApiResponse.ok(userService.getPreferences()));
+    }
+
+    @PutMapping("/preferences")
+    @Operation(summary = "Mettre à jour les préférences")
+    public ResponseEntity<ApiResponse<UserPreferencesDTO>> updatePreferences(
+            @Valid @RequestBody UserPreferencesDTO request) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.updatePreferences(request)));
     }
 
     @PostMapping("/set-password")
@@ -44,7 +59,9 @@ public class AuthController {
     @Operation(summary = "Demander la réinitialisation du mot de passe")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequestDTO request) {
-        keycloakService.envoyerEmailReinitialisationMotDePasse(request.getEmail());
+        if (keycloakService.utilisateurExiste(request.getEmail())) {
+            emailService.envoyerEmailReinitialisationMotDePasse(request.getEmail());
+        }
         return ResponseEntity.ok(ApiResponse.ok("Email de réinitialisation envoyé", null));
     }
 

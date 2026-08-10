@@ -21,15 +21,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class AgentSureteService {
 
     private final UserRepository userRepository;
-    private final JournalAdminService journalAdminService;
     private final KeycloakService keycloakService;
     private final EmailService emailService;
 
     public Page<AgentSureteResponseDTO> listerAgents(String search, String statut, Pageable pageable) {
         Page<User> agents;
         if (statut != null && !statut.isBlank()) {
-            UserStatut userStatut = UserStatut.valueOf(statut.toUpperCase());
-            agents = userRepository.searchByRoleAndStatut(UserRole.AGENT_SURETE, search != null ? search : "", userStatut, pageable);
+            UserStatut userStatut = UserStatut.parse(statut);
+            if (userStatut != null) {
+                agents = userRepository.searchByRoleAndStatut(UserRole.AGENT_SURETE, search != null ? search : "", userStatut, pageable);
+            } else {
+                agents = userRepository.searchByRole(UserRole.AGENT_SURETE, search != null ? search : "", pageable);
+            }
         } else {
             agents = userRepository.searchByRole(UserRole.AGENT_SURETE, search != null ? search : "", pageable);
         }
@@ -73,9 +76,6 @@ public class AgentSureteService {
             log.warn("Création Keycloak échouée pour {} (user créé en BDD) : {}", request.getEmail(), e.getMessage());
         }
 
-        journalAdminService.journaliser(auteur.getId(), "CREATION_AGENT_SURETE", "User", agent.getId(),
-                "Création de l'agent de sûreté : " + agent.getPrenom() + " " + agent.getNom() + " (" + agent.getEmail() + ")");
-
         log.info("Agent de sûreté créé : {} {} ({})", agent.getPrenom(), agent.getNom(), agent.getEmail());
         return toResponseDTO(agent);
     }
@@ -97,9 +97,6 @@ public class AgentSureteService {
         agent.setEmail(request.getEmail());
         agent = userRepository.save(agent);
 
-        journalAdminService.journaliser(auteur.getId(), "MODIFICATION_AGENT_SURETE", "User", agent.getId(),
-                "Modification de l'agent de sûreté : " + agent.getPrenom() + " " + agent.getNom() + " (" + agent.getEmail() + ")");
-
         log.info("Agent de sûreté modifié : {} {} ({})", agent.getPrenom(), agent.getNom(), agent.getEmail());
         return toResponseDTO(agent);
     }
@@ -115,8 +112,11 @@ public class AgentSureteService {
         agent.setStatut(UserStatut.INACTIF);
         agent = userRepository.save(agent);
 
-        journalAdminService.journaliser(auteur.getId(), "REVOCATION_AGENT_SURETE", "User", agent.getId(),
-                "Révocation de l'agent de sûreté : " + agent.getPrenom() + " " + agent.getNom() + " (" + agent.getEmail() + ")");
+        try {
+            keycloakService.desactiverUtilisateur(agent.getEmail());
+        } catch (Exception e) {
+            log.warn("Désactivation Keycloak échouée pour {} : {}", agent.getEmail(), e.getMessage());
+        }
 
         log.info("Agent de sûreté révoqué : {} {} ({})", agent.getPrenom(), agent.getNom(), agent.getEmail());
         return toResponseDTO(agent);
@@ -133,8 +133,11 @@ public class AgentSureteService {
         agent.setStatut(UserStatut.ACTIF);
         agent = userRepository.save(agent);
 
-        journalAdminService.journaliser(auteur.getId(), "REACTIVATION_AGENT_SURETE", "User", agent.getId(),
-                "Réactivation de l'agent de sûreté : " + agent.getPrenom() + " " + agent.getNom() + " (" + agent.getEmail() + ")");
+        try {
+            keycloakService.activerUtilisateur(agent.getEmail());
+        } catch (Exception e) {
+            log.warn("Réactivation Keycloak échouée pour {} : {}", agent.getEmail(), e.getMessage());
+        }
 
         log.info("Agent de sûreté réactivé : {} {} ({})", agent.getPrenom(), agent.getNom(), agent.getEmail());
         return toResponseDTO(agent);

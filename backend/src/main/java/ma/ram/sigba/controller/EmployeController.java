@@ -43,7 +43,8 @@ public class EmployeController {
     }
 
     @PutMapping("/profile")
-    @Operation(summary = "Modifier son profil", description = "L'employé met à jour son nom et prénom.")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Modifier son profil", description = "L'utilisateur met à jour son nom, prénom et photo.")
     public ResponseEntity<ApiResponse<UserResponseDTO>> updateProfile(
             @Valid @RequestBody UpdateProfileRequestDTO request) {
         UserResponseDTO profile = userService.updateProfile(request);

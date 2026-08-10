@@ -38,13 +38,14 @@ public class DirectionController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
-    @Operation(summary = "Lister les directions", description = "Liste paginée des directions avec recherche et filtre par statut.")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'AGENT_SURETE')")
+    @Operation(summary = "Lister les directions", description = "Liste paginée des directions avec recherche, filtre par statut et par manager.")
     public ResponseEntity<ApiResponse<Page<DirectionResponseDTO>>> listerDirections(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String statut,
+            @RequestParam(required = false) Long managerId,
             @PageableDefault(size = 20) Pageable pageable) {
-        Page<DirectionResponseDTO> directions = directionService.listerDirections(search, statut, pageable);
+        Page<DirectionResponseDTO> directions = directionService.listerDirections(search, statut, managerId, pageable);
         return ResponseEntity.ok(ApiResponse.ok(directions));
     }
 

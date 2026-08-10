@@ -5,14 +5,20 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ma.ram.sigba.dto.*;
+import ma.ram.sigba.entity.enums.ResultatPassage;
 import ma.ram.sigba.service.PassageService;
 import ma.ram.sigba.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @RestController
 @RequestMapping("/api/passages")
@@ -24,7 +30,7 @@ public class PassageController {
     private final UserService userService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'AGENT_SURETE')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'AGENT_SURETE', 'EMPLOYE')")
     @Operation(summary = "Enregistrer un passage", description = "UID badge + zone → AUTORISÉ ou REFUSÉ")
     public ResponseEntity<ApiResponse<PassageResponseDTO>> enregistrerPassage(
             @RequestParam String uidBadge,
@@ -36,13 +42,26 @@ public class PassageController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MANAGER', 'AGENT_SURETE', 'EMPLOYE')")
-    @Operation(summary = "Historique des passages", description = "Filtrage par zone/employé pour SUPER_ADMIN ; par direction pour MANAGER/AGENT ; personnel pour EMPLOYE")
+    @Operation(summary = "Historique des passages", description = "Filtrage par zone/employé/période pour SUPER_ADMIN ; par direction pour MANAGER/AGENT ; personnel pour EMPLOYE")
     public ResponseEntity<ApiResponse<Page<PassageResponseDTO>>> listerPassages(
             @RequestParam(required = false) Long zoneId,
             @RequestParam(required = false) Long employeId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) String zone,
+            @RequestParam(required = false) String resultat,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFin,
             @PageableDefault(size = 20) Pageable pageable) {
         var user = userService.getCurrentUser();
-        Page<PassageResponseDTO> passages = passageService.listerPassages(user, zoneId, employeId, pageable);
+        ResultatPassage resultatPassage = null;
+        if (resultat != null && !resultat.isBlank()) {
+            resultatPassage = ResultatPassage.valueOf(resultat.toUpperCase());
+        }
+        LocalDateTime debut = dateDebut != null ? dateDebut.atStartOfDay() : null;
+        LocalDateTime fin = dateFin != null ? dateFin.atTime(LocalTime.MAX) : null;
+        Page<PassageResponseDTO> passages = passageService.listerPassages(
+                user, zoneId, employeId, search, direction, zone, resultatPassage, debut, fin, pageable);
         return ResponseEntity.ok(ApiResponse.ok(passages));
     }
 

@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.time.LocalDate;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -18,4 +20,6 @@ public class SignalerIncidentRequestDTO {
     private String typeIncident;
 
     private String commentaire;
+
+    private LocalDate dateFinContrat;
 }

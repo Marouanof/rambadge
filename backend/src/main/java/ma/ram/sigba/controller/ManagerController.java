@@ -17,6 +17,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/managers")
 @RequiredArgsConstructor
@@ -86,12 +88,38 @@ public class ManagerController {
 
     @GetMapping("/mes-employes")
     @PreAuthorize("hasRole('MANAGER')")
-    @Operation(summary = "Employés de ma direction", description = "Retourne les employés de la direction du manager connecté. avecBadge=true pour ne garder que ceux ayant un badge.")
+    @Operation(summary = "Employés de ma direction", description = "Retourne les employés de la direction du manager connecté. Filtres : search, statut, poste. avecBadge=true pour ne garder que ceux ayant un badge.")
     public ResponseEntity<ApiResponse<Page<UserResponseDTO>>> listerMesEmployes(
+            @RequestParam(required = false, defaultValue = "") String search,
+            @RequestParam(required = false, defaultValue = "") String statut,
+            @RequestParam(required = false, defaultValue = "") String poste,
             @RequestParam(required = false, defaultValue = "false") boolean avecBadge,
             @PageableDefault(size = 20) Pageable pageable) {
         var manager = userService.getCurrentUser();
-        Page<UserResponseDTO> employes = managerService.listerMesEmployes(manager, avecBadge, pageable);
+        Page<UserResponseDTO> employes = managerService.listerMesEmployes(manager, avecBadge, search, statut, poste, pageable);
         return ResponseEntity.ok(ApiResponse.ok(employes));
+    }
+
+    @GetMapping("/mes-employes/postes")
+    @PreAuthorize("hasRole('MANAGER')")
+    @Operation(summary = "Postes de mes employés", description = "Liste des postes distincts des employés de la direction du manager connecté.")
+    public ResponseEntity<ApiResponse<List<String>>> listerPostesMesEmployes() {
+        var manager = userService.getCurrentUser();
+        return ResponseEntity.ok(ApiResponse.ok(managerService.listerPostesMesEmployes(manager)));
+    }
+
+    @PatchMapping("/mes-employes/{id}/statut")
+    @PreAuthorize("hasRole('MANAGER')")
+    @Operation(summary = "Changer le statut d'un employé", description = "Suspendre (SUSPENDU), réactiver (ACTIF) ou désactiver définitivement (INACTIF) un employé de sa direction. INACTIF révoque le badge et bloque le compte.")
+    public ResponseEntity<ApiResponse<UserResponseDTO>> changerStatutEmploye(
+            @PathVariable Long id,
+            @RequestParam String statut) {
+        ma.ram.sigba.entity.enums.UserStatut userStatut = ma.ram.sigba.entity.enums.UserStatut.parse(statut);
+        if (userStatut == null) {
+            throw new ma.ram.sigba.exception.BusinessException("Statut invalide : " + statut);
+        }
+        var manager = userService.getCurrentUser();
+        UserResponseDTO employe = managerService.changerStatutEmploye(manager, id, userStatut);
+        return ResponseEntity.ok(ApiResponse.ok("Statut modifié avec succès", employe));
     }
 }

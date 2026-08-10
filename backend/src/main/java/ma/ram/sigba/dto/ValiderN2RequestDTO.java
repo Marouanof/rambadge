@@ -26,5 +26,6 @@ public class ValiderN2RequestDTO {
     public static class ZoneDecisionDTO {
         private Long zoneDemandeeId;
         private boolean validee;
+        private String motifRefus;
     }
 }

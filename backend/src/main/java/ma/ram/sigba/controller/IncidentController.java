@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import ma.ram.sigba.dto.ApiResponse;
 import ma.ram.sigba.dto.IncidentResponseDTO;
 import ma.ram.sigba.dto.SignalerIncidentRequestDTO;
+import ma.ram.sigba.entity.enums.IncidentStatut;
+import ma.ram.sigba.entity.enums.TypeIncident;
 import ma.ram.sigba.service.IncidentService;
 import ma.ram.sigba.service.UserService;
 import org.springframework.data.domain.Page;
@@ -39,9 +41,12 @@ public class IncidentController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MANAGER', 'AGENT_SURETE', 'EMPLOYE')")
     @Operation(summary = "Lister les incidents", description = "SUPER_ADMIN=tous, MANAGER=direction, AGENT=suspendus, EMPLOYE=les siens")
     public ResponseEntity<ApiResponse<Page<IncidentResponseDTO>>> listerIncidents(
+            @RequestParam(required = false) IncidentStatut statut,
+            @RequestParam(required = false) TypeIncident type,
+            @RequestParam(required = false) String search,
             @PageableDefault(size = 20) Pageable pageable) {
         var user = userService.getCurrentUser();
-        Page<IncidentResponseDTO> incidents = incidentService.listerIncidents(user, pageable);
+        Page<IncidentResponseDTO> incidents = incidentService.listerIncidents(user, statut, type, search, pageable);
         return ResponseEntity.ok(ApiResponse.ok(incidents));
     }
 

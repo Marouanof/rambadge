@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface InvitationRepository extends JpaRepository<Invitation, Long> {
@@ -18,12 +20,14 @@ public interface InvitationRepository extends JpaRepository<Invitation, Long> {
 
     boolean existsByEmailDestinataireAndStatut(String emailDestinataire, InvitationStatut statut);
 
+    List<Invitation> findByStatutAndDateExpirationBefore(InvitationStatut statut, LocalDateTime date);
+
     @Query("SELECT i FROM Invitation i WHERE i.emetteur.id = :emetteurId AND " +
            "(COALESCE(:search, '') = '' OR LOWER(i.emailDestinataire) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(i.codeUnique) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (COALESCE(:statut, '') = '' OR i.statut = :statut)")
+           "AND (:statut IS NULL OR i.statut = :statut)")
     Page<Invitation> searchByEmetteur(@Param("emetteurId") Long emetteurId,
                                        @Param("search") String search,
-                                       @Param("statut") String statut,
+                                       @Param("statut") InvitationStatut statut,
                                        Pageable pageable);
 }

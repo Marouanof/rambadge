@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import ma.ram.sigba.entity.enums.DemandeStatut;
 
+import java.time.LocalDate;
+
 @Entity
 @Table(name = "demande")
 @Getter
@@ -24,4 +26,7 @@ public class Demande extends BaseEntity {
 
     @Column(name = "motif_refus", columnDefinition = "TEXT")
     private String motifRefus;
+
+    @Column(name = "date_fin_contrat")
+    private LocalDate dateFinContrat;
 }

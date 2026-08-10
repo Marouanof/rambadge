@@ -9,6 +9,7 @@ import ma.ram.sigba.entity.*;
 import ma.ram.sigba.entity.enums.UserRole;
 import ma.ram.sigba.entity.enums.UserStatut;
 import ma.ram.sigba.entity.enums.ZoneDemandeeStatut;
+import ma.ram.sigba.entity.enums.DemandeStatut;
 import ma.ram.sigba.exception.BusinessException;
 import ma.ram.sigba.exception.ResourceNotFoundException;
 import ma.ram.sigba.repository.*;
@@ -26,17 +27,22 @@ public class ManagerService {
 
     private final UserRepository userRepository;
     private final DirectionRepository directionRepository;
-    private final JournalAdminService journalAdminService;
     private final KeycloakService keycloakService;
     private final EmailService emailService;
     private final BadgeRepository badgeRepository;
     private final ZoneDemandeeRepository zoneDemandeeRepository;
+    private final DemandeRepository demandeRepository;
+    private final BadgeService badgeService;
 
     public Page<ManagerResponseDTO> listerManagers(String search, String statut, Pageable pageable) {
         Page<User> managers;
         if (statut != null && !statut.isBlank()) {
-            UserStatut userStatut = UserStatut.valueOf(statut.toUpperCase());
-            managers = userRepository.searchByRoleAndStatut(UserRole.MANAGER, search != null ? search : "", userStatut, pageable);
+            UserStatut userStatut = UserStatut.parse(statut);
+            if (userStatut != null) {
+                managers = userRepository.searchByRoleAndStatut(UserRole.MANAGER, search != null ? search : "", userStatut, pageable);
+            } else {
+                managers = userRepository.searchByRole(UserRole.MANAGER, search != null ? search : "", pageable);
+            }
         } else {
             managers = userRepository.searchByRole(UserRole.MANAGER, search != null ? search : "", pageable);
         }
@@ -91,9 +97,6 @@ public class ManagerService {
             log.warn("Création Keycloak échouée pour {} (user créé en BDD) : {}", request.getEmail(), e.getMessage());
         }
 
-        journalAdminService.journaliser(auteur.getId(), "CREATION_MANAGER", "User", manager.getId(),
-                "Création du manager : " + manager.getPrenom() + " " + manager.getNom() + " (" + manager.getEmail() + ") — Direction : " + direction.getNom());
-
         log.info("Manager créé : {} {} ({}) — Direction: {}", manager.getPrenom(), manager.getNom(), manager.getEmail(), direction.getNom());
         return toResponseDTO(manager);
     }
@@ -112,11 +115,23 @@ public class ManagerService {
         Direction newDirection = directionRepository.findById(request.getDirectionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Direction non trouvée avec l'id : " + request.getDirectionId()));
 
+        if ("INACTIF".equals(newDirection.getStatut())) {
+            throw new BusinessException("Impossible d'assigner un manager à la direction désactivée '" + newDirection.getNom() + "'");
+        }
+
         if (newDirection.getManager() != null && !newDirection.getManager().getId().equals(id)) {
             throw new BusinessException("La direction '" + newDirection.getNom() + "' a déjà un manager assigné");
         }
 
         Direction oldDirection = manager.getDirection();
+
+        if (oldDirection != null && !oldDirection.getId().equals(newDirection.getId())) {
+            long demandesEnAttente = demandeRepository.countByEmployeDirectionIdAndStatut(oldDirection.getId(), DemandeStatut.EN_ATTENTE_N1);
+            if (demandesEnAttente > 0) {
+                throw new BusinessException("Transfert impossible : la direction '" + oldDirection.getNom()
+                        + "' a encore " + demandesEnAttente + " demande(s) en attente de validation N1. Traitez ces demandes avant de changer la direction du manager.");
+            }
+        }
 
         manager.setNom(request.getNom());
         manager.setPrenom(request.getPrenom());
@@ -131,9 +146,6 @@ public class ManagerService {
         }
         newDirection.setManager(manager);
         directionRepository.save(newDirection);
-
-        journalAdminService.journaliser(auteur.getId(), "MODIFICATION_MANAGER", "User", manager.getId(),
-                "Modification du manager : " + manager.getPrenom() + " " + manager.getNom() + " (" + manager.getEmail() + ")");
 
         log.info("Manager modifié : {} {} ({})", manager.getPrenom(), manager.getNom(), manager.getEmail());
         return toResponseDTO(manager);
@@ -158,8 +170,11 @@ public class ManagerService {
 
         manager = userRepository.save(manager);
 
-        journalAdminService.journaliser(auteur.getId(), "REVOCATION_MANAGER", "User", manager.getId(),
-                "Révocation du manager : " + manager.getPrenom() + " " + manager.getNom() + " (" + manager.getEmail() + ")");
+        try {
+            keycloakService.desactiverUtilisateur(manager.getEmail());
+        } catch (Exception e) {
+            log.warn("Désactivation Keycloak échouée pour {} : {}", manager.getEmail(), e.getMessage());
+        }
 
         log.info("Manager révoqué : {} {} ({})", manager.getPrenom(), manager.getNom(), manager.getEmail());
         return toResponseDTO(manager);
@@ -173,48 +188,109 @@ public class ManagerService {
             throw new BusinessException("Le manager est déjà actif");
         }
 
+        if (manager.getDirection() == null) {
+            throw new BusinessException("Impossible de réactiver ce manager : aucune direction n'est assignée. Réassignez une direction avant de le réactiver.");
+        }
+
+        if ("INACTIF".equals(manager.getDirection().getStatut())) {
+            throw new BusinessException("Impossible de réactiver ce manager : la direction '" + manager.getDirection().getNom()
+                    + "' est désactivée. Réactivez la direction avant de réactiver le manager.");
+        }
+
         manager.setStatut(UserStatut.ACTIF);
         manager = userRepository.save(manager);
 
-        journalAdminService.journaliser(auteur.getId(), "REACTIVATION_MANAGER", "User", manager.getId(),
-                "Réactivation du manager : " + manager.getPrenom() + " " + manager.getNom() + " (" + manager.getEmail() + ")");
+        try {
+            keycloakService.activerUtilisateur(manager.getEmail());
+        } catch (Exception e) {
+            log.warn("Réactivation Keycloak échouée pour {} : {}", manager.getEmail(), e.getMessage());
+        }
 
         log.info("Manager réactivé : {} {} ({})", manager.getPrenom(), manager.getNom(), manager.getEmail());
         return toResponseDTO(manager);
     }
 
-    public Page<UserResponseDTO> listerMesEmployes(User manager, boolean avecBadge, Pageable pageable) {
+    public Page<UserResponseDTO> listerMesEmployes(User manager, boolean avecBadge, String search, String statut, String poste, Pageable pageable) {
+        if (manager.getStatut() != UserStatut.ACTIF) {
+            throw new BusinessException("Votre compte est désactivé");
+        }
         if (manager.getDirection() == null) {
             throw new BusinessException("Aucune direction n'est assignée à ce manager");
         }
         Long directionId = manager.getDirection().getId();
-        Page<User> employesPage = userRepository.findByDirectionIdAndRole(directionId, UserRole.EMPLOYE, pageable);
-
-        if (avecBadge) {
-            List<User> employesAvecBadge = employesPage.getContent().stream()
-                    .filter(user -> badgeRepository.findByEmployeId(user.getId()).isPresent())
-                    .toList();
-            long total = employesAvecBadge.size();
-            int start = (int) pageable.getOffset();
-            int end = Math.min(start + pageable.getPageSize(), employesAvecBadge.size());
-            List<User> pageContent = start < end ? employesAvecBadge.subList(start, end) : List.of();
-            org.springframework.data.domain.Page<User> filteredPage =
-                    new org.springframework.data.domain.PageImpl<>(pageContent, pageable, total);
-            return filteredPage.map(user -> buildUserResponseDTO(user));
-        }
+        UserStatut userStatut = UserStatut.parse(statut);
+        String posteFiltre = (poste != null && !poste.isBlank()) ? poste : null;
+        Page<User> employesPage = userRepository.searchByDirectionAndRole(
+                directionId, UserRole.EMPLOYE, search != null ? search : "", userStatut, posteFiltre, avecBadge, pageable);
 
         return employesPage.map(user -> buildUserResponseDTO(user));
+    }
+
+    public List<String> listerPostesMesEmployes(User manager) {
+        if (manager.getStatut() != UserStatut.ACTIF) {
+            throw new BusinessException("Votre compte est désactivé");
+        }
+        if (manager.getDirection() == null) {
+            throw new BusinessException("Aucune direction n'est assignée à ce manager");
+        }
+        return userRepository.findDistinctPostesByDirectionIdAndRole(manager.getDirection().getId(), UserRole.EMPLOYE);
+    }
+
+    @Transactional
+    public UserResponseDTO changerStatutEmploye(User manager, Long employeId, UserStatut nouveauStatut) {
+        if (manager.getStatut() != UserStatut.ACTIF) {
+            throw new BusinessException("Votre compte est désactivé");
+        }
+        if (manager.getDirection() == null) {
+            throw new BusinessException("Aucune direction n'est assignée à ce manager");
+        }
+        User employe = userRepository.findById(employeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employé non trouvé avec l'id : " + employeId));
+        if (!UserRole.EMPLOYE.equals(employe.getRole())) {
+            throw new ResourceNotFoundException("Employé non trouvé avec l'id : " + employeId);
+        }
+        if (employe.getDirection() == null || !manager.getDirection().getId().equals(employe.getDirection().getId())) {
+            throw new BusinessException("Cet employé ne fait pas partie de votre direction");
+        }
+        if (employe.getStatut() == nouveauStatut) {
+            throw new BusinessException("Le statut de l'employé est déjà : " + nouveauStatut);
+        }
+
+        UserStatut ancienStatut = employe.getStatut();
+
+        if (nouveauStatut == UserStatut.INACTIF) {
+            badgeRepository.findByEmployeId(employeId).ifPresent(badge -> badgeService.revoquerBadge(badge.getId()));
+            try {
+                keycloakService.desactiverUtilisateur(employe.getEmail());
+            } catch (Exception e) {
+                log.warn("Désactivation Keycloak échouée pour {} : {}", employe.getEmail(), e.getMessage());
+            }
+        } else if (nouveauStatut == UserStatut.ACTIF && ancienStatut == UserStatut.INACTIF) {
+            try {
+                keycloakService.activerUtilisateur(employe.getEmail());
+            } catch (Exception e) {
+                log.warn("Réactivation Keycloak échouée pour {} : {}", employe.getEmail(), e.getMessage());
+            }
+        }
+
+        employe.setStatut(nouveauStatut);
+        employe = userRepository.save(employe);
+
+        log.info("Statut employé {} changé en {} par {}", employeId, nouveauStatut, manager.getEmail());
+        return buildUserResponseDTO(employe);
     }
 
     private UserResponseDTO buildUserResponseDTO(User user) {
             List<String> zonesHabilitees = List.of();
             java.time.LocalDateTime dateExpirationBadge = null;
             Long badgeId = null;
+            String badgeUid = null;
 
             var badgeOpt = badgeRepository.findByEmployeId(user.getId());
             if (badgeOpt.isPresent()) {
                 Badge badge = badgeOpt.get();
                 badgeId = badge.getId();
+                badgeUid = badge.getUidUnique();
                 dateExpirationBadge = badge.getDateExpiration();
 
                 if (badge.getDemande() != null) {
@@ -237,6 +313,7 @@ public class ManagerService {
                     .statut(user.getStatut().name())
                     .directionNom(user.getDirection() != null ? user.getDirection().getNom() : null)
                     .badgeId(badgeId)
+                    .badgeUid(badgeUid)
                     .dateExpirationBadge(dateExpirationBadge)
                     .zonesHabilitees(zonesHabilitees)
                     .build();

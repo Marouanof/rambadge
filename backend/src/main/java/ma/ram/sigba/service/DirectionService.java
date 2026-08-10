@@ -32,11 +32,10 @@ public class DirectionService {
     private final UserRepository userRepository;
     private final BadgeRepository badgeRepository;
     private final DemandeRepository demandeRepository;
-    private final JournalAdminService journalAdminService;
 
     @Transactional(readOnly = true)
-    public Page<DirectionResponseDTO> listerDirections(String search, String statut, Pageable pageable) {
-        return directionRepository.search(search, statut, pageable).map(this::toResponseDTO);
+    public Page<DirectionResponseDTO> listerDirections(String search, String statut, Long managerId, Pageable pageable) {
+        return directionRepository.search(search, statut, managerId, pageable).map(this::toResponseDTO);
     }
 
     @Transactional(readOnly = true)
@@ -66,6 +65,7 @@ public class DirectionService {
                 .employesActifs(employesActifs)
                 .badgesActifs(badgesActifs)
                 .demandesEnCours(demandesEnCours)
+                .demandesEnAttenteN1(demandeRepository.countByEmployeDirectionIdAndStatut(id, DemandeStatut.EN_ATTENTE_N1))
                 .build();
     }
 
@@ -82,9 +82,6 @@ public class DirectionService {
                 .build();
 
         direction = directionRepository.save(direction);
-        journalAdminService.journaliser(auteur.getId(), "CREATION_DIRECTION", "Direction", direction.getId(),
-                "Création de la direction : " + direction.getNom() + " (" + direction.getCodeDirection() + ")");
-
         log.info("Direction créée : {} ({})", direction.getNom(), direction.getCodeDirection());
         return toResponseDTO(direction);
     }
@@ -102,9 +99,6 @@ public class DirectionService {
         direction.setCodeDirection(request.getCodeDirection());
         direction = directionRepository.save(direction);
 
-        journalAdminService.journaliser(auteur.getId(), "MODIFICATION_DIRECTION", "Direction", direction.getId(),
-                "Modification de la direction : " + direction.getNom() + " (" + direction.getCodeDirection() + ")");
-
         log.info("Direction modifiée : {} ({})", direction.getNom(), direction.getCodeDirection());
         return toResponseDTO(direction);
     }
@@ -118,13 +112,16 @@ public class DirectionService {
             throw new BusinessException("La direction est déjà désactivée");
         }
 
+        long managersActifs = userRepository.countByDirectionIdAndRoleAndStatut(id, UserRole.MANAGER, UserStatut.ACTIF);
+        if (managersActifs > 0) {
+            throw new BusinessException("Impossible de désactiver la direction '" + direction.getNom()
+                    + "' : " + managersActifs + " manager(s) actif(s) y est/sont affecté(s). Révoquez d'abord le(s) manager(s).");
+        }
+
         direction.setStatut("INACTIF");
         direction = directionRepository.save(direction);
 
         long employesActifs = userRepository.countByDirectionIdAndStatut(id, UserStatut.ACTIF);
-        journalAdminService.journaliser(auteur.getId(), "DESACTIVATION_DIRECTION", "Direction", direction.getId(),
-                "Désactivation de la direction : " + direction.getNom() + " — " + employesActifs + " employé(s) actif(s) affecté(s)");
-
         log.info("Direction désactivée : {} ({})", direction.getNom(), direction.getCodeDirection());
         return toResponseDTO(direction);
     }
@@ -140,9 +137,6 @@ public class DirectionService {
 
         direction.setStatut("ACTIF");
         direction = directionRepository.save(direction);
-
-        journalAdminService.journaliser(auteur.getId(), "ACTIVATION_DIRECTION", "Direction", direction.getId(),
-                "Activation de la direction : " + direction.getNom() + " (" + direction.getCodeDirection() + ")");
 
         log.info("Direction activée : {} ({})", direction.getNom(), direction.getCodeDirection());
         return toResponseDTO(direction);

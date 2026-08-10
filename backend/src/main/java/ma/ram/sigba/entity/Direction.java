@@ -20,7 +20,7 @@ public class Direction extends BaseEntity {
     private String codeDirection;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_id")
+    @JoinColumn(name = "manager_id", unique = true)
     @JsonIgnore
     private User manager;
 
