@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '@/services/api';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Ban, CheckCircle, Search, Users, Building2 } from 'lucide-react';
+import { Plus, Pencil, Ban, CheckCircle, Search, Users, Building2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Directions() {
   const [directions, setDirections] = useState([]);
@@ -20,9 +20,12 @@ export default function Directions() {
   const [form, setForm] = useState({ nom: '', codeDirection: '' });
   const [error, setError] = useState('');
   const [employes, setEmployes] = useState(null);
+  const [employePage, setEmployePage] = useState(0);
+  const [employesDirectionId, setEmployesDirectionId] = useState(null);
   const [confirmDisable, setConfirmDisable] = useState(null);
   const [impacts, setImpacts] = useState(null);
   const [loadingImpact, setLoadingImpact] = useState(false);
+  const [disableError, setDisableError] = useState('');
   const fetchedRef = useRef(null);
 
   const fetchDirections = async (p, s, st) => {
@@ -71,6 +74,7 @@ export default function Directions() {
       setError('');
       setImpacts(null);
       setConfirmDisable(direction);
+      setDisableError('');
       setLoadingImpact(true);
       try {
         const res = await api.get(`/directions/${direction.id}/impacts`);
@@ -93,13 +97,14 @@ export default function Directions() {
 
   const confirmDisableDirection = async () => {
     setError('');
+    setDisableError('');
     try {
       await api.patch(`/directions/${confirmDisable.id}/disable`);
       setConfirmDisable(null);
       setImpacts(null);
       fetchDirections(page, search, filterStatut);
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de la désactivation');
+      setDisableError(err.response?.data?.message || 'Erreur lors de la désactivation');
     }
   };
 
@@ -113,10 +118,12 @@ export default function Directions() {
     setModal({ open: true, direction: null });
   };
 
-  const showEmployes = async (directionId) => {
+  const showEmployes = async (directionId, p) => {
     try {
-      const res = await api.get(`/directions/${directionId}/employes`, { params: { page: 0, size: 50 } });
+      const res = await api.get(`/directions/${directionId}/employes`, { params: { page: p, size: 10 } });
       setEmployes(res.data.data);
+      setEmployePage(p);
+      setEmployesDirectionId(directionId);
     } catch {
       setError('Erreur lors du chargement des employes');
     }
@@ -129,16 +136,12 @@ export default function Directions() {
           <h1 className="text-2xl font-semibold tracking-tight">Directions</h1>
           <p className="text-sm text-muted-foreground mt-1">Gestion des directions RAM</p>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus className="size-4 mr-2" />
-          Ajouter
-        </Button>
       </div>
 
       <Card className="shadow-sm">
         <CardContent className="p-6">
-          <div className="flex flex-wrap gap-2 mb-4">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
               <Input
                 placeholder="Rechercher..."
@@ -147,15 +150,22 @@ export default function Directions() {
                 className="pl-8"
               />
             </div>
-            <select
-              value={filterStatut}
-              onChange={(e) => { setFilterStatut(e.target.value); setPage(0); }}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">Tous les statuts</option>
-              <option value="ACTIF">Actif</option>
-              <option value="INACTIF">Inactif</option>
-            </select>
+            <div className="relative shrink-0">
+              <select
+                value={filterStatut}
+                onChange={(e) => { setFilterStatut(e.target.value); setPage(0); }}
+                className="h-8 appearance-none rounded-md border border-input bg-background pl-3 pr-8 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Tous les statuts</option>
+                <option value="ACTIF">Actif</option>
+                <option value="INACTIF">Inactif</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
+            <Button onClick={handleCreate} className="ml-auto">
+              <Plus className="size-4 mr-2" />
+              Ajouter
+            </Button>
           </div>
 
           {error && <div className="text-destructive bg-destructive/10 p-3 rounded-md mb-4 text-sm">{error}</div>}
@@ -187,15 +197,20 @@ export default function Directions() {
                       <td className="py-3 text-sm">{d.codeDirection}</td>
                       <td className="py-3 text-sm text-muted-foreground">{d.managerNom || '-'}</td>
                       <td className="py-3">
-                        <Button variant="link" className="h-auto p-0 text-sm" onClick={() => showEmployes(d.id)}>
+                        <Button variant="link" className="h-auto p-0 text-sm" onClick={() => showEmployes(d.id, 0)}>
                           <Users className="size-3.5 mr-1" />
                           {d.nombreEmployes}
                         </Button>
                       </td>
                       <td className="py-3">
-                        <Badge variant={d.statut === 'ACTIF' ? 'default' : 'secondary'} className="text-xs">
+                        <span
+                          className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
+                          style={d.statut === 'ACTIF'
+                            ? { backgroundColor: '#008B60', color: '#fff' }
+                            : { backgroundColor: '#674459', color: '#fff' }}
+                        >
                           {d.statut}
-                        </Badge>
+                        </span>
                       </td>
                       <td className="py-3">
                         <div className="flex gap-1.5">
@@ -206,6 +221,7 @@ export default function Directions() {
                           <Button
                             variant={d.statut === 'ACTIF' ? 'destructive' : 'default'}
                             size="sm"
+                            style={d.statut === 'ACTIF' ? undefined : { backgroundColor: '#008B60', color: '#fff' }}
                             onClick={() => handleToggle(d)}
                           >
                             {d.statut === 'ACTIF' ? (
@@ -223,17 +239,15 @@ export default function Directions() {
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-4">
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
-                Précédent
-              </Button>
-              <span className="text-sm text-muted-foreground">{page + 1} / {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
-                Suivant
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <Button variant="outline" size="icon" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Page précédente">
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground">{totalPages > 0 ? page + 1 : 0} / {totalPages}</span>
+            <Button variant="outline" size="icon" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Page suivante">
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -271,7 +285,7 @@ export default function Directions() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!employes} onOpenChange={(open) => { if (!open) setEmployes(null); }}>
+      <Dialog open={!!employes} onOpenChange={(open) => { if (!open) { setEmployes(null); setEmployesDirectionId(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Employés de la direction</DialogTitle>
@@ -282,30 +296,56 @@ export default function Directions() {
               <p className="text-sm">Aucun employé</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b text-left text-sm text-muted-foreground">
-                    <th className="pb-2 font-medium">Nom</th>
-                    <th className="pb-2 font-medium">Prénom</th>
-                    <th className="pb-2 font-medium">Email</th>
-                    <th className="pb-2 font-medium">Matricule</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {employes?.content?.map((e) => (
-                    <tr key={e.id} className="border-b last:border-0">
-                      <td className="py-2.5 text-sm">{e.nom}</td>
-                      <td className="py-2.5 text-sm">{e.prenom}</td>
-                      <td className="py-2.5 text-sm text-muted-foreground">{e.email}</td>
-                      <td className="py-2.5 text-sm">{e.matricule}</td>
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {employes?.totalElements || 0} employé(s) — page {employePage + 1} / {Math.max(employes?.totalPages || 1, 1)}
+                </p>
+              </div>
+              <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b text-left text-sm text-muted-foreground">
+                      <th className="pb-2 font-medium">Nom</th>
+                      <th className="pb-2 font-medium">Prénom</th>
+                      <th className="pb-2 font-medium">Email</th>
+                      <th className="pb-2 font-medium">Matricule</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {employes?.content?.map((e) => (
+                      <tr key={e.id} className="border-b last:border-0">
+                        <td className="py-2.5 text-sm">{e.nom}</td>
+                        <td className="py-2.5 text-sm">{e.prenom}</td>
+                        <td className="py-2.5 text-sm text-muted-foreground">{e.email}</td>
+                        <td className="py-2.5 text-sm">{e.matricule}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
-          <DialogFooter>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={employePage === 0}
+              onClick={() => showEmployes(employesDirectionId, employePage - 1)}
+              aria-label="Page précédente"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={employePage >= (employes?.totalPages || 1) - 1}
+              onClick={() => showEmployes(employesDirectionId, employePage + 1)}
+              aria-label="Page suivante"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+            <div className="flex-1" />
             <Button variant="outline" onClick={() => setEmployes(null)}>Fermer</Button>
           </DialogFooter>
         </DialogContent>
@@ -313,13 +353,16 @@ export default function Directions() {
 
       <Dialog
         open={!!confirmDisable}
-        onOpenChange={(open) => { if (!open) { setConfirmDisable(null); setImpacts(null); } }}
+        onOpenChange={(open) => { if (!open) { setConfirmDisable(null); setImpacts(null); setDisableError(''); } }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Désactiver la direction {confirmDisable?.nom}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            {disableError && (
+              <div className="text-destructive bg-destructive/10 p-3 rounded-md text-sm">{disableError}</div>
+            )}
             <p className="text-sm text-muted-foreground">
               Désactiver cette direction bloquera les nouvelles invitations, demandes de badge et affectations de manager. Les badges déjà émis resteront actifs.
             </p>
@@ -329,21 +372,21 @@ export default function Directions() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between border rounded-md p-3">
                   <span className="text-sm font-medium">Employés actifs</span>
-                  <Badge variant="secondary" className="text-xs">{impacts.employesActifs}</Badge>
+                  <Badge className="text-xs" style={{ backgroundColor: '#008B60', color: '#fff' }}>{impacts.employesActifs}</Badge>
                 </div>
                 <div className="flex items-center justify-between border rounded-md p-3">
                   <span className="text-sm font-medium">Badges actifs</span>
-                  <Badge variant="secondary" className="text-xs">{impacts.badgesActifs}</Badge>
+                  <Badge className="text-xs" style={{ backgroundColor: '#008B60', color: '#fff' }}>{impacts.badgesActifs}</Badge>
                 </div>
                 <div className="flex items-center justify-between border rounded-md p-3">
                   <span className="text-sm font-medium">Demandes en cours (N1/N2)</span>
-                  <Badge variant="secondary" className="text-xs">{impacts.demandesEnCours}</Badge>
+                  <Badge className="text-xs" style={{ backgroundColor: '#F1BE5B', color: '#5C4A00' }}>{impacts.demandesEnCours}</Badge>
                 </div>
               </div>
             ) : null}
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => { setConfirmDisable(null); setImpacts(null); }}>
+            <Button variant="outline" onClick={() => { setConfirmDisable(null); setImpacts(null); setDisableError(''); }}>
               Annuler
             </Button>
             <Button variant="destructive" onClick={confirmDisableDirection} disabled={loadingImpact || !impacts}>

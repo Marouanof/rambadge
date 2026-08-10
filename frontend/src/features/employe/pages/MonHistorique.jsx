@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { History, RotateCcw } from 'lucide-react';
+import { History, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function MonHistorique() {
   const [passages, setPassages] = useState([]);
@@ -43,12 +42,6 @@ export default function MonHistorique() {
     setFilteredPassages(result);
   }, [passages, filterResultat, filterDebut, filterFin]);
 
-  const resetFilters = () => {
-    setFilterResultat('');
-    setFilterDebut('');
-    setFilterFin('');
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -59,7 +52,7 @@ export default function MonHistorique() {
       <Card className="shadow-sm">
         <CardContent className="p-6">
           <div className="flex flex-wrap items-end gap-3 mb-4">
-            <div className="space-y-1">
+            <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Resultat</label>
               <select
                 value={filterResultat}
@@ -71,7 +64,7 @@ export default function MonHistorique() {
                 <option value="REFUSE">Refuse</option>
               </select>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Date debut</label>
               <input
                 type="date"
@@ -80,7 +73,7 @@ export default function MonHistorique() {
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
               />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Date fin</label>
               <input
                 type="date"
@@ -89,10 +82,6 @@ export default function MonHistorique() {
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
               />
             </div>
-            <Button variant="outline" size="sm" onClick={resetFilters}>
-              <RotateCcw className="size-3.5 mr-1" />
-              Reinitialiser
-            </Button>
           </div>
 
           {error && <div className="text-destructive bg-destructive/10 p-3 rounded-md mb-4 text-sm">{error}</div>}
@@ -121,9 +110,14 @@ export default function MonHistorique() {
                       <tr key={p.id} className="border-b last:border-0">
                         <td className="py-3 text-sm">{p.zoneNom}</td>
                         <td className="py-3">
-                          <Badge variant={p.resultat === 'AUTORISE' ? 'default' : 'destructive'} className="text-xs">
+                          <span
+                            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
+                            style={p.resultat === 'AUTORISE'
+                              ? { backgroundColor: '#008B60', color: '#fff' }
+                              : { backgroundColor: '#C20831', color: '#fff' }}
+                          >
                             {p.resultat}
-                          </Badge>
+                          </span>
                         </td>
                         <td className="py-3 text-sm text-muted-foreground">{new Date(p.horodatage).toLocaleString()}</td>
                       </tr>
@@ -134,17 +128,15 @@ export default function MonHistorique() {
             </>
           )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-4">
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
-                Precedent
-              </Button>
-              <span className="text-sm text-muted-foreground">{page + 1} / {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
-                Suivant
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <Button variant="outline" size="icon" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Page precedente">
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground">{totalPages > 0 ? page + 1 : 0} / {totalPages}</span>
+            <Button variant="outline" size="icon" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Page suivante">
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

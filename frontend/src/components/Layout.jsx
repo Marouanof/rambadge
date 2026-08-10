@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useSession } from '@/context/SessionContext';
 import {
   SidebarProvider,
   Sidebar,
@@ -16,9 +17,10 @@ import {
   SidebarRail,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import api from '@/services/api';
+import { getNotificationConfig, formatRelativeTime } from '@/features/notifications/notificationConfig';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -32,7 +34,6 @@ import {
   ShieldCheck,
   Users,
   Search,
-  FileText,
   Play,
   Settings,
   CheckCircle2,
@@ -44,28 +45,31 @@ import {
   ClipboardCheck,
   History,
   ShieldAlert,
-  FileSpreadsheet,
+  ArrowRightLeft,
   Badge,
   Bell,
   User,
+  ScanLine,
+  Trash2,
 } from 'lucide-react';
 
 const navByRole = {
   SUPER_ADMIN: [
     { to: '/', label: 'Tableau de bord', icon: LayoutDashboard },
     { to: '/directions', label: 'Directions RAM', icon: Building2 },
-    { to: '/agents', label: 'Agents de surete', icon: ShieldCheck },
     { to: '/managers', label: 'Managers', icon: Users },
+    { to: '/agents', label: 'Agents de surete', icon: ShieldCheck },
     { to: '/consultation', label: 'Consultation globale', icon: Search },
-    { to: '/rapports', label: 'Rapports', icon: FileText },
     { to: '/simulation', label: 'Simulation de passage', icon: Play },
     { to: '/parametres', label: 'Parametres', icon: Settings },
   ],
   MANAGER: [
     { to: '/', label: 'Tableau de bord', icon: LayoutDashboard },
     { to: '/validations', label: 'Validations en attente', icon: ClipboardCheck },
+    { to: '/invitations', label: 'Invitations & Postes', icon: Mail },
     { to: '/employes-direction', label: 'Employes de la direction', icon: UserCheck },
-    { to: '/invitations', label: 'Invitations', icon: Mail },
+    { to: '/badges-direction', label: 'Badges de la direction', icon: Badge },
+    { to: '/passages-direction', label: 'Passages de la direction', icon: ArrowRightLeft },
     { to: '/incidents', label: 'Incidents', icon: AlertTriangle },
     { to: '/parametres', label: 'Parametres', icon: Settings },
   ],
@@ -79,27 +83,18 @@ const navByRole = {
     { to: '/', label: 'Tableau de bord', icon: LayoutDashboard },
     { to: '/dossiers-n2', label: 'Dossiers a instruire', icon: ClipboardCheck },
     { to: '/incidents-surete', label: 'Incidents / Revocations', icon: ShieldAlert },
+    { to: '/verification-badges', label: 'Verification badges', icon: ScanLine },
     { to: '/historique', label: 'Historique global', icon: History },
-    { to: '/rapports-surete', label: "Rapports d'audit", icon: FileSpreadsheet },
     { to: '/parametres', label: 'Parametres', icon: Settings },
   ],
 };
 
 export default function Layout() {
-  const [user, setUser] = useState(null);
+  const { user } = useSession();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
-
-  useEffect(() => {
-    api.get('/auth/me')
-      .then((res) => setUser(res.data.data))
-      .catch(() => {
-        localStorage.removeItem('token');
-        navigate('/login');
-      });
-  }, [navigate]);
 
   const fetchNotifications = useCallback(() => {
     api.get('/notifications/unread-count')
@@ -130,6 +125,20 @@ export default function Layout() {
     if (notif.lienElement) navigate(notif.lienElement);
   };
 
+  const handleMarkRead = async (notif) => {
+    try { await api.patch(`/notifications/${notif.id}/read`); } catch {}
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+    setNotifications((prev) => prev.map((n) => (n.id === notif.id ? { ...n, lu: true } : n)));
+  };
+
+  const handleDeleteNotification = async (notif) => {
+    try {
+      await api.delete(`/notifications/${notif.id}`);
+      if (!notif.lu) setUnreadCount((prev) => Math.max(0, prev - 1));
+      setNotifications((prev) => prev.filter((n) => n.id !== notif.id));
+    } catch { /* ignore */ }
+  };
+
   const handleLogout = async () => {
     const refreshToken = localStorage.getItem('refreshToken');
     if (refreshToken) {
@@ -154,7 +163,11 @@ export default function Layout() {
     return location.pathname.startsWith(path);
   };
 
+  const currentPage = navItems.find((item) => isActive(item.to))?.label || 'Portail Badges';
+
   const initials = user ? `${user.prenom?.charAt(0) || ''}${user.nom?.charAt(0) || ''}`.toUpperCase() : '?';
+
+  const showNotifications = user?.role && user.role !== 'SUPER_ADMIN';
 
   const navigateTo = useCallback((path) => {
     navigate(path);
@@ -182,6 +195,7 @@ export default function Layout() {
                       isActive={isActive(item.to)}
                       tooltip={item.label}
                       onClick={() => navigateTo(item.to)}
+                      className={isActive(item.to) ? "bg-[#C20831]! text-white! hover:bg-[#C20831]! hover:text-white! data-active:bg-[#C20831]! data-active:text-white! data-active:hover:bg-[#C20831]! data-active:hover:text-white!" : undefined}
                     >
                       <item.icon />
                       <span>{item.label}</span>
@@ -193,18 +207,15 @@ export default function Layout() {
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter className="border-t p-3 group-data-[collapsible=icon]:p-2">
-          <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-            <Avatar className="size-7 shrink-0">
-              <AvatarFallback className="text-xs font-medium bg-sidebar-primary text-sidebar-primary-foreground">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 truncate group-data-[collapsible=icon]:hidden">
-              <p className="truncate text-sm font-medium leading-tight">{user?.prenom} {user?.nom}</p>
-              <p className="truncate text-xs text-muted-foreground leading-tight">{user?.role?.replace('_', ' ')}</p>
-            </div>
-          </div>
+        <SidebarFooter className="border-t p-2">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={handleLogout} tooltip="Se déconnecter">
+                <LogOut className="size-4" />
+                <span>Se déconnecter</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
@@ -213,66 +224,116 @@ export default function Layout() {
         <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4">
           <SidebarTrigger />
           <Separator orientation="vertical" className="h-6" />
-          <img src="/logo_ram.png" alt="RAM" className="h-7 object-contain hidden sm:block" />
           <span className="text-sm font-semibold tracking-tight hidden sm:block whitespace-nowrap">
-            Portail Badges – Royal Air Maroc
+            {currentPage}
           </span>
           <div className="flex-1" />
           {user && (
             <>
-              <DropdownMenu onOpenChange={(open) => { if (open) fetchNotifications(); }}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="size-5" />
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </span>
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72">
-                  <div className="p-2 text-sm font-medium border-b">Notifications</div>
-                  {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-muted-foreground">Aucune notification</div>
-                  ) : (
-                    notifications.map((n) => (
-                      <DropdownMenuItem
-                        key={n.id}
-                        onClick={() => handleNotificationClick(n)}
-                        className={`cursor-pointer flex-col items-start py-2 ${!n.lu ? 'bg-muted/50' : ''}`}
-                      >
-                        <p className="text-sm font-medium">{n.message}</p>
-                        {n.createdAt && (
-                          <p className="text-xs text-muted-foreground">{new Date(n.createdAt).toLocaleString()}</p>
+              {showNotifications && (
+                <DropdownMenu onOpenChange={(open) => { if (open) fetchNotifications(); }}>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+                        <Bell className="size-5" />
+                        {unreadCount > 0 && (
+                          <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                          </span>
                         )}
-                      </DropdownMenuItem>
-                    ))
-                  )}
-                  {unreadCount > 0 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleMarkAllRead} className="cursor-pointer justify-center text-xs text-muted-foreground">
-                        Tout marquer comme lu ({unreadCount})
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                      </Button>
+                    }
+                  >
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80">
+                    <div className="p-2 text-sm font-medium border-b">Notifications</div>
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-muted-foreground">Aucune notification</div>
+                    ) : (
+                      notifications.map((n) => {
+                        const cfg = getNotificationConfig(n.typeNotification);
+                        const Icon = cfg.icon;
+                        return (
+                          <DropdownMenuItem
+                            key={n.id}
+                            onClick={() => handleNotificationClick(n)}
+                            className={`group/item cursor-pointer items-start gap-3 py-2 pr-2 ${!n.lu ? 'bg-muted/50' : ''}`}
+                          >
+                            <span className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full ${cfg.bgClass}`}>
+                              <Icon className={`size-4 ${cfg.iconClass}`} />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <p className="text-sm font-medium leading-snug">{n.message}</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                {cfg.label} · {formatRelativeTime(n.createdAt)}
+                              </p>
+                            </span>
+                            {!n.lu && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-6 shrink-0 text-muted-foreground opacity-0 group-hover/item:opacity-100"
+                                onClick={(e) => { e.stopPropagation(); handleMarkRead(n); }}
+                                aria-label="Marquer comme lue"
+                                title="Marquer comme lue"
+                              >
+                                <CheckCircle2 className="size-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-6 shrink-0 text-muted-foreground opacity-0 group-hover/item:opacity-100 hover:text-destructive"
+                              onClick={(e) => { e.stopPropagation(); handleDeleteNotification(n); }}
+                              aria-label="Supprimer"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </DropdownMenuItem>
+                        );
+                      })
+                    )}
+                    {unreadCount > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleMarkAllRead} className="cursor-pointer justify-center text-xs text-muted-foreground">
+                          Tout marquer comme lu ({unreadCount})
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/notifications')} className="cursor-pointer justify-center text-xs font-medium">
+                      Voir toutes les notifications
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2 h-9 px-2">
-                    <Avatar className="size-7">
-                      <AvatarFallback className="text-xs font-medium">{initials}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium hidden md:block">{user.prenom} {user.nom}</span>
-                    <ChevronDown className="size-3 text-muted-foreground hidden md:block" />
-                  </Button>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="ghost" className="flex items-center gap-2 h-9 px-2">
+                      <Avatar className="size-7">
+                        {user.photoUrl ? (
+                          <AvatarImage src={user.photoUrl} alt="Avatar" />
+                        ) : (
+                          <AvatarFallback className="text-xs font-medium">{initials}</AvatarFallback>
+                        )}
+                      </Avatar>
+                      <span className="text-sm font-medium hidden md:block">{user.prenom} {user.nom}</span>
+                      <ChevronDown className="size-3 text-muted-foreground hidden md:block" />
+                    </Button>
+                  }
+                >
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="flex items-center gap-2 px-2 py-1.5">
                     <Avatar className="size-8">
-                      <AvatarFallback className="text-xs font-medium">{initials}</AvatarFallback>
+                      {user.photoUrl ? (
+                        <AvatarImage src={user.photoUrl} alt="Avatar" />
+                      ) : (
+                        <AvatarFallback className="text-xs font-medium">{initials}</AvatarFallback>
+                      )}
                     </Avatar>
                     <div>
                       <p className="text-sm font-medium">{user.prenom} {user.nom}</p>
@@ -293,7 +354,7 @@ export default function Layout() {
             </>
           )}
         </header>
-        <main className="flex-1 p-6 bg-muted">
+        <main className="flex-1 p-4 sm:p-6 bg-muted">
           <Outlet />
         </main>
       </SidebarInset>

@@ -10,8 +10,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  FileText, Plus, Trash2, Send, AlertTriangle, BadgeCheck,
-  Clock, CheckCircle2, XCircle, Ban, ShieldAlert,
+  Plus, Send, AlertTriangle, BadgeCheck,
+  Clock, CheckCircle2, XCircle, ShieldAlert,
 } from 'lucide-react';
 
 const statutLabels = {
@@ -20,16 +20,28 @@ const statutLabels = {
 };
 
 const steps = ['EN_ATTENTE_N1', 'EN_ATTENTE_N2', 'VALIDEE'];
+const statutStyle = (statut) => {
+  if (statut === 'VALIDEE') return { backgroundColor: '#008B60', color: '#fff' };
+  if (statut === 'REFUSEE_N1' || statut === 'REFUSEE_N2' || statut === 'REFUSEE') return { backgroundColor: '#C20831', color: '#fff' };
+  return { backgroundColor: '#F1BE5B', color: '#4A3B05' };
+};
 const statutIcons = {
   EN_ATTENTE_N1: Clock, EN_ATTENTE_N2: Clock,
   VALIDEE: CheckCircle2, REFUSEE_N1: XCircle, REFUSEE_N2: XCircle,
 };
 const badStatuts = ['REFUSEE_N1', 'REFUSEE_N2'];
 
+const referenceDemande = (demande) => {
+  const annee = new Date(demande.createdAt).getFullYear();
+  return `DEM-${annee}-${String(demande.id).padStart(4, '0')}`;
+};
+
 export default function MaDemande() {
   const [demande, setDemande] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [zones, setZones] = useState([]);
+  const [selectedZoneIds, setSelectedZoneIds] = useState([]);
   const requiredPieces = [
     { key: 'PIECE_IDENTITE', label: "Piece d'identite" },
     { key: 'ATTESTATIONFORMATION', label: 'Attestation de formation' },
@@ -46,10 +58,14 @@ export default function MaDemande() {
   const [monBadge, setMonBadge] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
+  const [compteStatut, setCompteStatut] = useState('ACTIF');
+  const compteBloque = compteStatut === 'SUSPENDU' || compteStatut === 'INACTIF';
   const MAX_FILE_SIZE = 5 * 1024 * 1024;
-  const MAX_PIECES = 5;
 
   useEffect(() => {
+    api.get('/dashboard/employe')
+      .then((res) => setCompteStatut(res.data.data?.compteStatut || 'ACTIF'))
+      .catch(() => {});
     api.get('/demandes', { params: { page: 0, size: 1 } })
       .then((res) => {
         const content = res.data.data.content;
@@ -60,7 +76,14 @@ export default function MaDemande() {
     api.get('/badges/mine')
       .then((res) => { if (res.data.data) setMonBadge(res.data.data); })
       .catch(() => {});
+    api.get('/zones')
+      .then((res) => setZones(res.data.data))
+      .catch(() => {});
   }, []);
+
+  const toggleZone = (zoneId) => {
+    setSelectedZoneIds((prev) => (prev.includes(zoneId) ? prev.filter((id) => id !== zoneId) : [...prev, zoneId]));
+  };
 
   const uploadFile = async (file) => {
     const formData = new FormData();
@@ -84,6 +107,11 @@ export default function MaDemande() {
         setActionLoading(false);
         return;
       }
+      if (selectedZoneIds.length === 0) {
+        setError('Selectionnez au moins une zone d\'acces');
+        setActionLoading(false);
+        return;
+      }
       const piecesWithUrls = [];
       const photoUrl = await uploadFile(photoFile);
       piecesWithUrls.push({ typePiece: 'PHOTO_IDENTITE', fichierUrl: photoUrl });
@@ -97,10 +125,11 @@ export default function MaDemande() {
         const fileUrl = await uploadFile(piece.file);
         piecesWithUrls.push({ typePiece: piece.typePiece, fichierUrl: fileUrl });
       }
-      await api.post('/demandes', { pieces: piecesWithUrls });
+      await api.post('/demandes', { pieces: piecesWithUrls, zoneIds: selectedZoneIds });
       setShowForm(false);
       setPhotoFile(null);
       setPhotoPreview('');
+      setSelectedZoneIds([]);
       setPieces(requiredPieces.map((p) => ({ typePiece: p.key, file: null, fileName: '' })));
       const res = await api.get('/demandes', { params: { page: 0, size: 1 } });
       const content = res.data.data.content;
@@ -145,13 +174,29 @@ export default function MaDemande() {
           <h1 className="text-2xl font-semibold tracking-tight">Ma demande de badge</h1>
           <p className="text-sm text-muted-foreground mt-1">Suivez votre demande ou soumettez-en une nouvelle</p>
         </div>
-        {!demande && (
+        {(!demande || badStatuts.includes(demande.statut)) && !compteBloque && (
           <Button onClick={() => setShowForm(true)}>
             <Plus className="size-4 mr-2" />
             Soumettre une demande
           </Button>
         )}
       </div>
+
+      {compteBloque && (
+        <div className="flex items-start gap-3 rounded-lg border border-[#C20831]/30 bg-[#C20831]/5 p-4">
+          <AlertTriangle className="size-5 mt-0.5 shrink-0 text-[#C20831]" />
+          <div>
+            <p className="text-sm font-medium text-[#C20831]">
+              {compteStatut === 'SUSPENDU' ? 'Votre compte est suspendu' : 'Votre compte est désactivé'}
+            </p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {compteStatut === 'SUSPENDU'
+                ? "Vous ne pouvez pas soumettre de nouvelle demande de badge tant que votre compte est suspendu."
+                : "Votre compte a été désactivé. Vous ne pouvez plus soumettre de demande de badge."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {error && !showForm && !showIncident && (
         <div className="text-destructive bg-destructive/10 p-3 rounded-md text-sm">{error}</div>
@@ -162,10 +207,10 @@ export default function MaDemande() {
           <CardContent className="p-6 space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold">Demande #{demande.id}</h3>
+                <h3 className="text-lg font-semibold">{referenceDemande(demande)}</h3>
                 <p className="text-sm text-muted-foreground">Soumise le {new Date(demande.createdAt).toLocaleDateString()}</p>
               </div>
-              <Badge variant={badStatuts.includes(demande.statut) ? 'destructive' : demande.statut === 'VALIDEE' ? 'default' : 'secondary'} className="text-sm gap-1.5 px-3 py-1.5">
+              <Badge className="text-sm gap-1.5 px-3 py-1.5" style={statutStyle(demande.statut)}>
                 {Icon && <Icon className="size-4" />}
                 {statutLabels[demande.statut] || demande.statut}
               </Badge>
@@ -180,8 +225,8 @@ export default function MaDemande() {
                 return (
                   <div key={step} className="flex flex-col items-center gap-1 flex-1">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                      isRefused ? 'bg-destructive text-destructive-foreground' :
-                      isCompleted ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                      isRefused ? 'bg-[#C20831] text-white' :
+                      isCompleted ? 'bg-[#008B60] text-white' : 'bg-muted text-muted-foreground'
                     }`}>
                       {isRefused ? <XCircle className="size-4" /> : isCompleted ? <CheckCircle2 className="size-4" /> : i + 1}
                     </div>
@@ -194,11 +239,11 @@ export default function MaDemande() {
             </div>
 
             {(demande.statut === 'REFUSEE_N1' || demande.statut === 'REFUSEE_N2') && demande.motifRefus && (
-              <div className="flex items-start gap-3 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                <XCircle className="size-5 text-destructive shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-[#C20831]/10 border border-[#C20831]/20 rounded-md">
+                <XCircle className="size-5 text-[#C20831] shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-destructive">Motif du refus</p>
-                  <p className="text-sm text-destructive/80">{demande.motifRefus}</p>
+                  <p className="text-sm font-medium text-[#C20831]">Motif du refus</p>
+                  <p className="text-sm text-[#C20831]/80">{demande.motifRefus}</p>
                 </div>
               </div>
             )}
@@ -210,7 +255,7 @@ export default function MaDemande() {
                   {demande.zonesDemandees.map((z) => (
                     <div key={z.id} className="flex items-center justify-between border rounded-md p-3">
                       <span className="text-sm font-medium">{z.zoneNom}</span>
-                      <Badge variant={z.statutN2 === 'VALIDEE' ? 'default' : z.statutN2 === 'REFUSEE' ? 'destructive' : 'secondary'} className="text-xs">
+                      <Badge className="text-xs" style={statutStyle(z.statutN2 || 'EN_ATTENTE_N1')}>
                         {z.statutN2 || 'En attente'}
                       </Badge>
                     </div>
@@ -244,7 +289,7 @@ export default function MaDemande() {
         </Card>
       ) : null}
 
-      {showForm && (
+      {showForm && !compteBloque && (
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg">Nouvelle demande de badge</CardTitle>
@@ -320,6 +365,27 @@ export default function MaDemande() {
                 </div>
               ))}
 
+              <div className="border rounded-md p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Zones d'acces demande</span>
+                  <span className="text-xs text-muted-foreground">{selectedZoneIds.length} selectionnee(s)</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Selectionnez au moins une zone a laquelle vous devez acceder</p>
+                <div className="space-y-2">
+                  {zones.map((z) => (
+                    <label key={z.id} className="flex items-center gap-2 cursor-pointer border rounded-md p-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedZoneIds.includes(z.id)}
+                        onChange={() => toggleZone(z.id)}
+                        className="size-4 rounded border-gray-300"
+                      />
+                      <span className="text-sm font-medium">{z.nom}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               {error && <div className="text-destructive bg-destructive/10 p-3 rounded-md text-sm">{error}</div>}
 
               <div className="flex gap-2">
@@ -341,9 +407,9 @@ export default function MaDemande() {
           </DialogHeader>
           <form onSubmit={handleSignalIncident}>
             <div className="space-y-4 py-2">
-              <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-800">Cette action suspendra immediatement votre badge.</p>
+              <div className="flex items-start gap-3 p-3 bg-[#F1BE5B]/15 border border-[#F1BE5B]/40 rounded-md">
+                <AlertTriangle className="size-5 text-[#A67C00] shrink-0 mt-0.5" />
+                <p className="text-sm text-[#5C4A00]">Cette action suspendra immediatement votre badge.</p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Badge</label>

@@ -1,17 +1,104 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Command, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import { Eye, EyeOff, CheckCircle2, ChevronDown } from 'lucide-react';
 import api from '@/services/api';
-import './Login.css';
+import { cn } from '@/lib/utils';
+
+const inputClasses =
+  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.06] pl-4 pr-4 text-sm text-[#f8fafc] placeholder:text-white/40 outline-none transition-all focus:border-white/40 focus:bg-white/10 focus:ring-2 focus:ring-white/10";
+
+const selectClasses =
+  "h-11 w-full appearance-none rounded-lg border border-white/10 bg-white/[0.06] pl-4 pr-10 text-sm text-[#f8fafc] outline-none transition-all focus:border-white/40 focus:bg-white/10 focus:ring-2 focus:ring-white/10";
+
+const passwordInputClasses =
+  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.06] pl-4 pr-10 text-sm text-[#f8fafc] placeholder:text-white/40 outline-none transition-all focus:border-white/40 focus:bg-white/10 focus:ring-2 focus:ring-white/10";
 
 export default function Inscription() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const code = searchParams.get('code');
+  const [invitation, setInvitation] = useState(null);
+  const [invalidLink, setInvalidLink] = useState(false);
+  const [loadingInvitation, setLoadingInvitation] = useState(true);
   const [form, setForm] = useState({ nom: '', prenom: '', matricule: '', poste: '', motDePasse: '' });
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [posteOpen, setPosteOpen] = useState(false);
+  const [posteSearch, setPosteSearch] = useState('');
+  const [postePos, setPostePos] = useState(null);
+  const posteRef = useRef(null);
+  const posteMenuRef = useRef(null);
+
+  const openPoste = () => {
+    if (posteOpen) {
+      setPosteOpen(false);
+      return;
+    }
+    const el = posteRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const estHeight = 300;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const openUp = spaceBelow < estHeight && spaceAbove > spaceBelow;
+    setPostePos({
+      openUp,
+      top: rect.bottom,
+      bottom: window.innerHeight - rect.top,
+      left: rect.left,
+      width: rect.width,
+      maxHeight: (openUp ? spaceAbove : spaceBelow) - 8,
+    });
+    setPosteSearch('');
+    setPosteOpen(true);
+  };
+
+  useEffect(() => {
+    const onClickOutside = (e) => {
+      const inside =
+        posteRef.current?.contains(e.target) || posteMenuRef.current?.contains(e.target);
+      if (!inside) setPosteOpen(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!posteOpen) return;
+    const close = () => setPosteOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [posteOpen]);
+
+  useEffect(() => {
+    if (!code) {
+      setInvalidLink(true);
+      setLoadingInvitation(false);
+      return;
+    }
+    api
+      .get(`/invitations/${code}`)
+      .then((res) => {
+        setInvitation(res.data.data);
+        setInvalidLink(false);
+      })
+      .catch(() => {
+        setInvalidLink(true);
+      })
+      .finally(() => setLoadingInvitation(false));
+  }, [code]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,6 +106,11 @@ export default function Inscription() {
 
     if (form.motDePasse !== confirm) {
       setError('Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    if (invitation?.postes?.length && !form.poste) {
+      setError('Veuillez choisir votre poste');
       return;
     }
 
@@ -35,83 +127,288 @@ export default function Inscription() {
 
   const renderForm = () => (
     <>
-      <img src="/logo_ram.png" alt="Royal Air Maroc" className="login-ram-logo" />
-      <h1 className="login-main-title">Portail Badges – Royal Air Maroc</h1>
-      <p className="login-subtitle">Créez votre compte</p>
+      <img
+        src="/logo_ram.png"
+        alt="Royal Air Maroc"
+        className="mx-auto mb-6 w-44 object-contain brightness-0 invert"
+      />
 
-      <form onSubmit={handleSubmit}>
-        <div className="login-field">
-          <label>Nom</label>
-          <input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} required />
+      <h1 className="text-center text-xl font-bold tracking-tight text-white">
+        Portail Badges – Royal Air Maroc
+      </h1>
+      <p className="mt-1 text-center text-[13px] text-white/50">Créez votre compte</p>
+      {invitation?.directionNom && (
+        <p className="mt-2 text-center text-[12px] font-medium text-white/60">
+          Direction : {invitation.directionNom}
+        </p>
+      )}
+
+      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+        <div>
+          <label className="mb-1.5 block text-[13px] font-semibold text-white">Nom</label>
+          <input
+            value={form.nom}
+            onChange={(e) => setForm({ ...form, nom: e.target.value })}
+            required
+            className={inputClasses}
+          />
         </div>
-        <div className="login-field">
-          <label>Prénom</label>
-          <input value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} required />
+
+        <div>
+          <label className="mb-1.5 block text-[13px] font-semibold text-white">Prénom</label>
+          <input
+            value={form.prenom}
+            onChange={(e) => setForm({ ...form, prenom: e.target.value })}
+            required
+            className={inputClasses}
+          />
         </div>
-        <div className="login-field">
-          <label>Matricule</label>
-          <input value={form.matricule} onChange={(e) => setForm({ ...form, matricule: e.target.value })} required />
+
+        <div>
+          <label className="mb-1.5 block text-[13px] font-semibold text-white">Matricule</label>
+          <input
+            value={form.matricule}
+            onChange={(e) => setForm({ ...form, matricule: e.target.value })}
+            required
+            className={inputClasses}
+          />
         </div>
-        <div className="login-field">
-          <label>Poste</label>
-          <input value={form.poste} onChange={(e) => setForm({ ...form, poste: e.target.value })} placeholder="Ex. Contrôleur, Hôtesse…" required />
+
+        <div>
+          <label className="mb-1.5 block text-[13px] font-semibold text-white">Poste</label>
+          {invitation?.postes?.length ? (
+            <div className="relative" ref={posteRef}>
+              <button
+                type="button"
+                onClick={openPoste}
+                aria-haspopup="listbox"
+                aria-expanded={posteOpen}
+                className={cn(
+                  selectClasses,
+                  'flex cursor-pointer items-center justify-between gap-2 text-left',
+                  form.poste ? '' : 'text-white/40'
+                )}
+              >
+                <span className="truncate">{form.poste || 'Choisissez votre poste'}</span>
+                <ChevronDown className="size-4 shrink-0 text-white/50" />
+              </button>
+
+              {posteOpen &&
+                postePos &&
+                createPortal(
+                  <div
+                    ref={posteMenuRef}
+                    role="listbox"
+                    className="overflow-hidden rounded-lg border border-white/10 bg-slate-900/95 p-1 shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur"
+                    style={{
+                      position: 'fixed',
+                      left: postePos.left,
+                      width: postePos.width,
+                      top: postePos.openUp ? 'auto' : postePos.top + 8,
+                      bottom: postePos.openUp ? postePos.bottom + 8 : 'auto',
+                      zIndex: 50,
+                    }}
+                  >
+                    <Command className="bg-transparent p-0 text-slate-100">
+                      <div className="p-1">
+                        <input
+                          autoFocus
+                          value={posteSearch}
+                          onChange={(e) => setPosteSearch(e.target.value)}
+                          placeholder="Rechercher un poste..."
+                          className="h-9 w-full rounded-md border border-white/10 bg-white/[0.06] px-3 text-sm text-[#f8fafc] placeholder:text-white/40 outline-none transition-all focus:border-white/30 focus:bg-white/10"
+                        />
+                      </div>
+                      <CommandList className="text-slate-100" style={{ maxHeight: postePos.maxHeight }}>
+                        <CommandEmpty className="text-white/50">Aucun poste trouvé</CommandEmpty>
+                        <CommandGroup>
+                          {invitation.postes
+                            .filter((p) => p.toLowerCase().includes(posteSearch.toLowerCase()))
+                            .map((p) => (
+                              <CommandItem
+                                key={p}
+                                value={p}
+                                data-checked={form.poste === p ? 'true' : undefined}
+                                onSelect={() => {
+                                  setForm({ ...form, poste: p });
+                                  setPosteOpen(false);
+                                }}
+                                className="cursor-pointer text-slate-100 data-selected:bg-white/10 data-selected:text-white"
+                              >
+                                {p}
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </div>,
+                  document.body
+                )}
+            </div>
+          ) : (
+            <>
+              <input
+                value={form.poste}
+                onChange={(e) => setForm({ ...form, poste: e.target.value })}
+                placeholder="Ex. Contrôleur, Hôtesse…"
+                required
+                className={inputClasses}
+              />
+              <p className="mt-1 text-[11px] text-white/40">
+                Aucun poste configuré par votre manager pour le moment.
+              </p>
+            </>
+          )}
         </div>
-        <div className="login-field">
-          <label>Mot de passe</label>
-          <input type="password" value={form.motDePasse} onChange={(e) => setForm({ ...form, motDePasse: e.target.value })} placeholder="••••••••" required minLength={6} />
+
+        <div>
+          <label className="mb-1.5 block text-[13px] font-semibold text-white">Mot de passe</label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={form.motDePasse}
+              onChange={(e) => setForm({ ...form, motDePasse: e.target.value })}
+              placeholder="••••••••"
+              required
+              minLength={6}
+              className={passwordInputClasses}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/55 transition-colors hover:text-[#f1f5f9]"
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
         </div>
-        <div className="login-field">
-          <label>Confirmer le mot de passe</label>
-          <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" required minLength={6} />
+
+        <div>
+          <label className="mb-1.5 block text-[13px] font-semibold text-white">Confirmer le mot de passe</label>
+          <div className="relative">
+            <input
+              type={showConfirm ? 'text' : 'password'}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="••••••••"
+              required
+              minLength={6}
+              className={passwordInputClasses}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm(!showConfirm)}
+              aria-label={showConfirm ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/55 transition-colors hover:text-[#f1f5f9]"
+            >
+              {showConfirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
         </div>
-        {error && <div className="login-error">{error}</div>}
-        <button type="submit" className="login-btn" disabled={loading}>
+
+        {error && (
+          <div className="rounded-lg border border-[rgba(200,16,46,0.4)] bg-[rgba(200,16,46,0.2)] px-3.5 py-2.5 text-sm font-medium text-[#fca5a5]">
+            {error}
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          disabled={loading}
+          className="h-11 w-full rounded-lg bg-[#C8102E] font-semibold text-white shadow-[0_4px_20px_rgba(200,16,46,0.35)] hover:bg-[#A00D24]"
+        >
           {loading ? 'Inscription...' : "S'inscrire"}
-        </button>
+        </Button>
       </form>
-      <p className="login-it-support">Déjà un compte ? <a href="/login" style={{ color: '#f8fafc', fontWeight: 600 }}>Se connecter</a></p>
+
+      <p className="mt-6 text-center text-[13px] text-white/50">
+        Déjà un compte ?{' '}
+        <a href="/login" className="font-medium text-white/80 transition-opacity hover:opacity-70">
+          Se connecter
+        </a>
+      </p>
     </>
   );
 
   const renderSuccess = () => (
     <>
-      <img src="/logo_ram.png" alt="Royal Air Maroc" className="login-ram-logo" />
-      <h1 className="login-main-title">Portail Badges – Royal Air Maroc</h1>
-      <p className="login-subtitle">Compte créé</p>
-      <p style={{ color: '#cbd5e1', fontSize: 14, marginBottom: 16 }}>Votre compte a été créé avec succès.</p>
-      <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.35)', color: '#86efac', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 14, fontWeight: 500 }}>
-        Vous pouvez maintenant vous connecter.
+      <img
+        src="/logo_ram.png"
+        alt="Royal Air Maroc"
+        className="mx-auto mb-6 w-44 object-contain brightness-0 invert"
+      />
+
+      <h1 className="text-center text-xl font-bold tracking-tight text-white">
+        Portail Badges – Royal Air Maroc
+      </h1>
+      <p className="mt-1 text-center text-[13px] text-white/50">Compte créé</p>
+
+      <div className="mt-8 flex flex-col items-center gap-3 rounded-lg border border-[rgba(34,197,94,0.35)] bg-[rgba(34,197,94,0.15)] p-5 text-center">
+        <CheckCircle2 className="size-8 text-[#86efac]" />
+        <p className="text-sm font-medium text-[#86efac]">
+          Votre compte a été créé avec succès. Vous pouvez maintenant vous connecter.
+        </p>
       </div>
-      <button className="login-btn" onClick={() => navigate('/login')}>
+
+      <Button
+        onClick={() => navigate('/login')}
+        className="mt-6 h-11 w-full rounded-lg bg-[#C8102E] font-semibold text-white shadow-[0_4px_20px_rgba(200,16,46,0.35)] hover:bg-[#A00D24]"
+      >
         Se connecter
-      </button>
+      </Button>
     </>
   );
 
   const renderInvalid = () => (
     <>
-      <img src="/logo_ram.png" alt="Royal Air Maroc" className="login-ram-logo" />
-      <h1 className="login-main-title">Portail Badges – Royal Air Maroc</h1>
-      <div className="login-error" style={{ marginTop: 8 }}>Lien invalide. Vérifiez l'email que vous avez reçu.</div>
+      <img
+        src="/logo_ram.png"
+        alt="Royal Air Maroc"
+        className="mx-auto mb-6 w-44 object-contain brightness-0 invert"
+      />
+
+      <h1 className="text-center text-xl font-bold tracking-tight text-white">
+        Portail Badges – Royal Air Maroc
+      </h1>
+      <p className="mt-1 text-center text-[13px] text-white/50">Lien invalide</p>
+
+      <div className="mt-8 rounded-lg border border-[rgba(200,16,46,0.4)] bg-[rgba(200,16,46,0.2)] px-3.5 py-2.5 text-sm font-medium text-[#fca5a5]">
+        Lien invalide. Vérifiez l'email que vous avez reçu.
+      </div>
+
+      <Button
+        onClick={() => navigate('/login')}
+        className="mt-6 h-11 w-full rounded-lg bg-[#C8102E] font-semibold text-white shadow-[0_4px_20px_rgba(200,16,46,0.35)] hover:bg-[#A00D24]"
+      >
+        Retour à la connexion
+      </Button>
     </>
   );
 
   return (
-    <div className="login-split">
-      <div className="login-panel-left">
-        <div className="login-form-area">
-          {!code ? renderInvalid() : success ? renderSuccess() : renderForm()}
-        </div>
-      </div>
-      <div className="login-panel-right">
-        <img src="/ram_tarmac.png" alt="Tarmac Royal Air Maroc" className="login-tarmac-img" />
-        <div className="login-overlay-content">
-          <div className="login-overlay-card">
-            <span className="login-overlay-label">PORTAIL BADGES</span>
-            <p className="login-overlay-text">Bienvenue sur le portail badges RAM</p>
-            <span className="login-overlay-version">Version 2.4</span>
-          </div>
-        </div>
+    <div className="relative min-h-screen overflow-hidden bg-slate-900">
+      <img
+        src="/ram_tarmac.png"
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover object-center opacity-40"
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/75 to-slate-900" />
+
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-6 py-12">
+        <Card className="w-full max-w-[420px] border border-white/10 bg-slate-900/70 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+          <CardContent className="px-10 py-10">
+            {loadingInvitation ? (
+              <p className="py-10 text-center text-sm text-white/50">Chargement...</p>
+            ) : invalidLink || !invitation ? (
+              renderInvalid()
+            ) : success ? (
+              renderSuccess()
+            ) : (
+              renderForm()
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

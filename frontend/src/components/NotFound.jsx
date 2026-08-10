@@ -15,10 +15,10 @@ export default function NotFound() {
 
         <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-white/45">Portail Badges</span>
 
-        <h1 className="mt-3 text-[120px] font-bold leading-none tracking-tight text-[#C8102E] drop-shadow-[0_8px_40px_rgba(200,16,46,0.5)]">404</h1>
+        <h1 className="mt-3 text-[120px] font-bold leading-none tracking-tight text-[#C20831] drop-shadow-[0_8px_40px_rgba(194,8,49,0.5)]">404</h1>
 
         <div className="mt-4 flex items-center gap-2 text-lg font-semibold text-white">
-          <Plane className="size-5 text-[#C8102E]" />
+          <Plane className="size-5 text-[#C20831]" />
           Cette porte d'embarquement n'existe pas.
         </div>
 
@@ -29,14 +29,14 @@ export default function NotFound() {
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <Button
             onClick={() => navigate('/')}
-            className="h-10 bg-[#C8102E] px-6 font-semibold text-white shadow-[0_4px_20px_rgba(200,16,46,0.35)] hover:bg-[#A00D24]"
+            className="h-10 bg-[#C20831] px-6 font-semibold text-white shadow-[0_4px_20px_rgba(194,8,49,0.35)] hover:bg-[#C20831]/90"
           >
             Retour à l'accueil
           </Button>
           <Button
             variant="outline"
             onClick={() => navigate('/login')}
-            className="h-10 border-white/25 px-6 font-semibold text-white hover:bg-white/10 hover:text-white"
+            className="h-10 border-white/25 bg-transparent px-6 font-semibold text-white hover:bg-white/10 hover:text-white"
           >
             Se connecter
           </Button>

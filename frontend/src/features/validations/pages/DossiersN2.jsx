@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react';
 import api from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { ClipboardList, CheckCircle2, XCircle, FileText, Image } from 'lucide-react';
+import { ClipboardList, CheckCircle2, XCircle, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function DossiersN2() {
   const [demandes, setDemandes] = useState([]);
@@ -65,6 +64,10 @@ export default function DossiersN2() {
 
   const allChecked = checklist.casierJudiciaire && checklist.attestationFormation && checklist.justificationPoste && checklist.pieceIdentite;
 
+  const toggleZoneDecision = (id) => {
+    setZoneDecisions((prev) => ({ ...prev, [id]: prev[id] === 'valider' ? 'refuser' : 'valider' }));
+  };
+
   const handleValidate = async () => {
     if (!allChecked) { setError('Tous les elements de la checklist doivent etre verifies'); return; }
     const zones = Object.entries(zoneDecisions).map(([id, decision]) => {
@@ -74,9 +77,9 @@ export default function DossiersN2() {
     });
     if (zones.length === 0) { setError('Selectionnez au moins une zone'); return; }
     const allRefused = zones.every((z) => !z.validee);
-    if (allRefused) { setError('Toutes les zones sont refusées. Utilisez "Refuser la demande" pour un refus global.'); return; }
+    if (allRefused) { setError('Toutes les zones sont retirées. Utilisez "Refuser la demande" pour un refus global.'); return; }
     const refusedZones = zones.filter((z) => !z.validee && !z.motifRefus.trim());
-    if (refusedZones.length > 0) { setError('Le motif de refus est obligatoire pour chaque zone refusee'); return; }
+    if (refusedZones.length > 0) { setError('Le motif de retrait est obligatoire pour chaque zone retiree'); return; }
     setActionLoading(true);
     setError('');
     try {
@@ -154,13 +157,15 @@ export default function DossiersN2() {
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-4">
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Precedent</Button>
-              <span className="text-sm text-muted-foreground">{page + 1} / {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Suivant</Button>
-            </div>
-          )}
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <Button variant="outline" size="icon" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Page precedente">
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground">{totalPages > 0 ? page + 1 : 0} / {totalPages}</span>
+            <Button variant="outline" size="icon" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Page suivante">
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -174,6 +179,8 @@ export default function DossiersN2() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-muted-foreground">Email :</span> <span className="font-medium">{detail.employeEmail}</span></div>
                 <div><span className="text-muted-foreground">Direction :</span> <span className="font-medium">{detail.directionNom}</span></div>
+                <div><span className="text-muted-foreground">Poste :</span> <span className="font-medium">{detail.employePoste || '—'}</span></div>
+                <div><span className="text-muted-foreground">Fin de contrat :</span> <span className="font-medium">{detail.dateFinContrat ? new Date(detail.dateFinContrat).toLocaleDateString() : '—'}</span></div>
                 <div className="col-span-2"><span className="text-muted-foreground">Date :</span> <span className="font-medium">{new Date(detail.createdAt).toLocaleString()}</span></div>
               </div>
 
@@ -221,44 +228,26 @@ export default function DossiersN2() {
 
               {detail.zonesDemandees && detail.zonesDemandees.length > 0 && !showMotifRefus && (
                 <div>
-                  <h4 className="text-sm font-medium mb-2">Zones demandees</h4>
+                  <h4 className="text-sm font-medium mb-1">Zones autorisees en N1</h4>
+                  <p className="text-xs text-muted-foreground mb-2">Toutes cochees par defaut — decochez une zone pour la retirer du badge (motif obligatoire)</p>
                   <div className="space-y-2">
                     {detail.zonesDemandees.map((z) => (
                       <div key={z.id} className="border rounded-md p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <span className="text-sm font-medium">{z.zoneNom}</span>
-                            <p className="text-xs text-muted-foreground">{z.justification || 'Pas de justification'}</p>
-                          </div>
-                          <div className="flex gap-2">
-                            <label className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs cursor-pointer ${zoneDecisions[z.id] === 'valider' ? 'bg-green-100 text-green-700 border border-green-300' : 'border'}`}>
-                              <input
-                                type="radio"
-                                name={`zone-${z.id}`}
-                                checked={zoneDecisions[z.id] === 'valider'}
-                                onChange={() => setZoneDecisions((prev) => ({ ...prev, [z.id]: 'valider' }))}
-                                className="sr-only"
-                              />
-                              Valider
-                            </label>
-                            <label className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs cursor-pointer ${zoneDecisions[z.id] === 'refuser' ? 'bg-red-100 text-red-700 border border-red-300' : 'border'}`}>
-                              <input
-                                type="radio"
-                                name={`zone-${z.id}`}
-                                checked={zoneDecisions[z.id] === 'refuser'}
-                                onChange={() => setZoneDecisions((prev) => ({ ...prev, [z.id]: 'refuser' }))}
-                                className="sr-only"
-                              />
-                              Refuser
-                            </label>
-                          </div>
-                        </div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={zoneDecisions[z.id] === 'valider'}
+                            onChange={() => toggleZoneDecision(z.id)}
+                            className="size-4 rounded border-gray-300"
+                          />
+                          <span className="text-sm font-medium">{z.zoneNom}</span>
+                        </label>
                         {zoneDecisions[z.id] === 'refuser' && (
                           <Textarea
                             className="text-sm mt-2"
                             value={zoneRefusMotifs[z.id] || ''}
                             onChange={(e) => setZoneRefusMotifs((prev) => ({ ...prev, [z.id]: e.target.value }))}
-                            placeholder={`Motif du refus pour ${z.zoneNom}...`}
+                            placeholder={`Motif du retrait pour ${z.zoneNom}...`}
                             rows={2}
                           />
                         )}
@@ -328,7 +317,7 @@ export default function DossiersN2() {
             )}
             <Button onClick={handleValidate} disabled={actionLoading || !allChecked || showMotifRefus}>
               <CheckCircle2 className="size-4 mr-1" />
-              Enregistrer les decisions
+              Valider la demande
             </Button>
           </DialogFooter>
         </DialogContent>

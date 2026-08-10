@@ -23,8 +23,7 @@ export default function SureteDashboard() {
       .then(([dashRes, zonesRes, demRes]) => {
         setStats(dashRes.data.data);
         setZones(zonesRes.data.data || []);
-        const n2 = (demRes.data.data.content || []).filter((d) => d.statut === 'EN_ATTENTE_N2');
-        setOldestDemandes(n2.slice(0, 5));
+        setOldestDemandes(demRes.data.data.content || []);
       })
       .catch(() => setError('Erreur lors du chargement'))
       .finally(() => setLoading(false));
@@ -35,10 +34,10 @@ export default function SureteDashboard() {
   if (!stats) return null;
 
   const kpiCards = [
-    { label: 'Dossiers à instruire (N2)', value: stats.demandesN2EnAttente || 0, icon: ClipboardCheck, bg: 'bg-orange-100', fg: 'text-orange-600', action: () => navigate('/dossiers-n2') },
-    { label: 'Incidents en cours', value: stats.incidentsEnCours || 0, icon: ShieldAlert, bg: 'bg-red-100', fg: 'text-red-600', action: () => navigate('/incidents-surete') },
-    { label: 'Badges actifs', value: stats.badgesActifs || 0, icon: BadgeCheck, bg: 'bg-green-100', fg: 'text-green-600' },
-    { label: 'Total passages', value: stats.totalPassages || 0, icon: ArrowRightLeft, bg: 'bg-blue-100', fg: 'text-blue-600' },
+    { label: 'Dossiers à instruire (N2)', value: stats.demandesN2EnAttente || 0, icon: ClipboardCheck, bg: 'bg-[#F1BE5B]/15', fg: 'text-[#A67C00]', action: () => navigate('/dossiers-n2') },
+    { label: 'Incidents en cours', value: stats.incidentsEnCours || 0, icon: ShieldAlert, bg: 'bg-[#C20831]/10', fg: 'text-[#C20831]', action: () => navigate('/incidents-surete') },
+    { label: 'Badges actifs', value: stats.badgesActifs || 0, icon: BadgeCheck, bg: 'bg-[#008B60]/10', fg: 'text-[#008B60]' },
+    { label: 'Total passages', value: stats.totalPassages || 0, icon: ArrowRightLeft, bg: 'bg-[#674459]/10', fg: 'text-[#674459]' },
   ];
 
   const zoneData = zones.map((z) => ({ name: z.nom, value: stats.badgesParZone?.[z.nom] || 0 }));
@@ -76,10 +75,10 @@ export default function SureteDashboard() {
             {hasZoneData ? (
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={zoneData}>
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={60} />
                   <YAxis allowDecimals={false} />
                   <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="value" fill="#C20831" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

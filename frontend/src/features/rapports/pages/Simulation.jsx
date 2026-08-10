@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Play, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function Simulation() {
@@ -82,13 +81,13 @@ export default function Simulation() {
           {error && <div className="text-destructive bg-destructive/10 p-3 rounded-md mt-4 text-sm">{error}</div>}
 
           {result && (
-            <Card className={`mt-6 border-2 ${result.autorise ? 'border-green-200' : 'border-red-200'}`}>
+            <Card className={`mt-6 border-2 ${result.autorise ? 'border-[#008B60]/40' : 'border-[#C20831]/40'}`}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3 mb-3">
                   {result.autorise ? (
-                    <CheckCircle2 className="size-8 text-green-600" />
+                    <CheckCircle2 className="size-8 text-[#008B60]" />
                   ) : (
-                    <XCircle className="size-8 text-red-600" />
+                    <XCircle className="size-8 text-[#C20831]" />
                   )}
                   <div>
                     <h3 className="text-lg font-semibold">{result.autorise ? 'Autorise' : 'Refuse'}</h3>
