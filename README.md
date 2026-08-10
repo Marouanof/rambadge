@@ -5,13 +5,13 @@
 </p>
 
 <p align="center">
-  <a href="#"><img src="https://img.shields.io/badge/Java-21-E41F1F?style=flat&logo=openjdk&logoColor=white" alt="Java"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?style=flat&logo=spring&logoColor=white" alt="Spring Boot"></a>
-  <a href="#"><img src="https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react&logoColor=black" alt="React"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Vite-8-646CFF?style=flat&logo=vite&logoColor=white" alt="Vite"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?style=flat&logo=tailwindcss&logoColor=white" alt="Tailwind"></a>
-  <a href="#"><img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?style=flat&logo=postgresql&logoColor=white" alt="PostgreSQL"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Keycloak-26-3A3A3A?style=flat&logo=keycloak&logoColor=white" alt="Keycloak"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Java-21-E41F1F" alt="Java 21"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F" alt="Spring Boot 4.1"></a>
+  <a href="#"><img src="https://img.shields.io/badge/React-19-61DAFB" alt="React 19"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Vite-8-646CFF" alt="Vite 8"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4" alt="Tailwind CSS 4"></a>
+  <a href="#"><img src="https://img.shields.io/badge/PostgreSQL-15-4169E1" alt="PostgreSQL 15"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Keycloak-26-3A3A3A" alt="Keycloak 26"></a>
 </p>
 
 Gestion du cycle de vie complet des badges d'accès des salariés : demande,
