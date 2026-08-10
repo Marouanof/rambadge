@@ -1,23 +1,21 @@
-<div align="center">
+<p align="center">
+  <h1 align="center">SIGBA</h1>
+  <p align="center"><b>Système de Gestion des Badges et Accès</b></p>
+  <p align="center">Projet de stage · <b>Royal Air Maroc</b></p>
+</p>
 
-# SIGBA — Système de Gestion des Badges et Accès
+<p align="center">
+  <a href="#"><img src="https://img.shields.io/badge/Java-21-E41F1F?style=flat&logo=openjdk&logoColor=white" alt="Java"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?style=flat&logo=spring&logoColor=white" alt="Spring Boot"></a>
+  <a href="#"><img src="https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react&logoColor=black" alt="React"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Vite-8-646CFF?style=flat&logo=vite&logoColor=white" alt="Vite"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?style=flat&logo=tailwindcss&logoColor=white" alt="Tailwind"></a>
+  <a href="#"><img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?style=flat&logo=postgresql&logoColor=white" alt="PostgreSQL"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Keycloak-26-3A3A3A?style=flat&logo=keycloak&logoColor=white" alt="Keycloak"></a>
+</p>
 
-**Projet de stage · Royal Air Maroc**
-
-Gestion complète du cycle de vie des badges d'accès des salariés : demande,
-double validation, émission, incidents et habilitations de zones.
-
-![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white)
-![Tailwind](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
-![Keycloak](https://img.shields.io/badge/Keycloak-26-4E5056?style=for-the-badge&logo=keycloak&logoColor=white)
-
----
-
-</div>
+Gestion du cycle de vie complet des badges d'accès des salariés : demande,
+double validation N1/N2, émission, incidents, habilitations de zones et passages.
 
 ## Sommaire
 
@@ -32,21 +30,19 @@ double validation, émission, incidents et habilitations de zones.
 - [Rôles & workflow métier](#rôles--workflow-métier)
 - [API & documentation](#api--documentation)
 
----
-
 ## Fonctionnalités
 
-| | |
+| Domaine | Description |
 |---|---|
-| **Demande de badge** | En ligne, avec pièces justificatives et zones demandées |
-| **Double validation** | N1 par le manager de direction, N2 par un agent de sûreté |
-| **Émission de badge** | UID unique, expirations et renouvellements |
-| **Gestion des incidents** | Perte, vol, fin de contrat — suspension, levée, révocation |
-| **Habilitations de zones** | Attribuées au badge |
-| **Notifications** | Temps réel par rôle (manager, agent de sûreté, employé) |
-| **Invitations** | Création des comptes employés par email (via Keycloak) |
-| **Tableaux de bord** | Manager, employé, sûreté |
-| **Passages** | Consultations et simulation d'accès aux zones |
+| Demande de badge | En ligne, avec pièces justificatives et zones demandées |
+| Double validation | N1 par le manager de direction, N2 par un agent de sûreté |
+| Émission | UID unique, expirations et renouvellements |
+| Incidents | Perte, vol, fin de contrat — suspension, levée, révocation |
+| Habilitations de zones | Attribuées au badge |
+| Notifications | Temps réel par rôle (manager, agent de sûreté, employé) |
+| Invitations | Création de comptes employés par email (via Keycloak) |
+| Tableaux de bord | Manager, employé, sûreté |
+| Passages | Consultations et simulation d'accès aux zones |
 
 ## Stack technique
 
@@ -73,7 +69,7 @@ double validation, émission, incidents et habilitations de zones.
 
 #### 1. Base de données
 
-Créez la base (ou importez le dump fourni dans `backups/`) :
+Créez la base, ou importez le dump fourni dans `backups/` :
 
 ```sql
 CREATE DATABASE sigba_db;
@@ -99,7 +95,7 @@ cp .env.example .env
 #### 3. Keycloak
 
 - Créer le realm `sigba-realm` et le client `sigba-frontend` (type `public`).
-- Rôles définis dans le realm : `EMPLOYE`, `MANAGER`, `AGENT_SURETE`, `SUPER_ADMIN`.
+- Rôles : `EMPLOYE`, `MANAGER`, `AGENT_SURETE`, `SUPER_ADMIN`.
 
 ### Frontend
 
@@ -108,7 +104,7 @@ cd frontend
 npm install
 ```
 
-Créez `.env` à la racine du dossier `frontend/` :
+Créez `.env` à la racine de `frontend/` :
 
 ```env
 VITE_KEYCLOAK_URL=http://localhost:8080
@@ -117,6 +113,7 @@ VITE_KEYCLOAK_CLIENT_ID=sigba-frontend
 VITE_KEYCLOAK_CLIENT_SECRET=<secret du client Keycloak>
 ```
 
+> [!NOTE]
 > Les variables `VITE_*` sont exposées au navigateur.
 
 ## Démarrage
@@ -130,6 +127,7 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
+> [!NOTE]
 > Les données initiales sont insérées automatiquement au premier démarrage
 > (`schema.sql` / `data.sql`).
 
@@ -140,6 +138,7 @@ cd frontend
 npm run dev
 ```
 
+> [!TIP]
 > Accédez à `http://localhost:5173` puis connectez-vous via Keycloak.
 
 ## Structure du projet
