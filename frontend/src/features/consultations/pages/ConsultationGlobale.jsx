@@ -120,7 +120,7 @@ export default function ConsultationGlobale() {
             <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
               <Input
-                placeholder="UID , EMPLOYE ..."
+                placeholder={tab === 'demandes' ? "Nom, prénom, email, matricule..." : "UID, nom, prénom, email, matricule..."}
                 value={filters.employe}
                 onChange={(e) => handleFilterChange('employe', e.target.value)}
                 className="pl-8"

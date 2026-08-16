@@ -1,5 +1,6 @@
 package ma.ram.sigba.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -18,6 +19,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -27,10 +29,13 @@ import java.util.Map;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    @Value("${sigba.cors.allowed-origins}")
+    private String[] allowedOrigins;
+
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/**",
             "/api/invitations/*/accept",
-            "/api/invitations/*",
+            /*"/api/invitations/*",*/
             "/api/files/**",
             "/actuator/health",
             "/swagger-ui/**",
@@ -58,7 +63,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        config.setAllowedOrigins(Arrays.asList(allowedOrigins));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
