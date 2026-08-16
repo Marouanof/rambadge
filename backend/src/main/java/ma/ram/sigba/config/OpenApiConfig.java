@@ -17,9 +17,9 @@ public class OpenApiConfig {
     public OpenAPI sigbaOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("SIGBA — API Backend")
+                        .title("Royal Air Maroc Badges — API Backend")
                         .description("""
-                                Système d'Information Centralisé de Gestion des Badges Aéroportuaires (SIGBA)
+                                Système d'Information Centralisé de Gestion des Badges Aéroportuaires
                                 — Royal Air Maroc
 
                                 API backend pour la gestion des demandes de badges, des habilitations
@@ -27,7 +27,7 @@ public class OpenApiConfig {
                                 """)
                         .version("1.0.0")
                         .contact(new Contact()
-                                .name("SIGBA Team")
+                                .name("RAM Team")
                                 .email("sigba@ram.ma"))
                         .license(new License()
                                 .name("RAM Internal")))
