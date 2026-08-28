@@ -1,0 +1,12 @@
+# Fichiers de logs et sorties de dev
+*.log
+backend_log.txt
+frontend_log.txt
+
+# Environnement local
+.env
+.env.local
+
+# Système
+.DS_Store
+Thumbs.db
