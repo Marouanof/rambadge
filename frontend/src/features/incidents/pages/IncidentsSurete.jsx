@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { ShieldAlert, AlertTriangle, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, CheckCircle2, XCircle, ChevronLeft, ChevronRight, ChevronDown, Search } from 'lucide-react';
 
 const typeIncidentLabel = (type) => {
   const map = { PERTE: 'Perte', VOL: 'Vol', FIN_CONTRAT: 'Fin de contrat' };
@@ -24,14 +24,22 @@ export default function IncidentsSurete() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [statut, setStatut] = useState('');
+  const [type, setType] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
   const [confirmAction, setConfirmAction] = useState(null);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchIncidents = async (p) => {
+  const fetchIncidents = async (p, statut, type, search) => {
     setLoading(true);
     try {
-      const res = await api.get('/incidents', { params: { page: p, size: 10 } });
+      const params = { page: p, size: 10 };
+      if (statut) params.statut = statut;
+      if (type) params.type = type;
+      if (search) params.search = search;
+      const res = await api.get('/incidents', { params });
       setIncidents(res.data.data.content);
       setTotalPages(res.data.data.totalPages);
     } catch {
@@ -41,7 +49,15 @@ export default function IncidentsSurete() {
     }
   };
 
-  useEffect(() => { fetchIncidents(page); }, [page]);
+  useEffect(() => { fetchIncidents(page, statut, type, search); }, [page, statut, type, search]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const openConfirmAction = (action, incident) => {
     setConfirmAction({ action, incident });
@@ -57,7 +73,7 @@ export default function IncidentsSurete() {
         await api.patch(`/incidents/${confirmAction.incident.id}/lift-suspension`);
       }
       setConfirmAction(null);
-      fetchIncidents(page);
+      fetchIncidents(page, statut, type, search);
     } catch (err) {
       setError(err.response?.data?.message || 'Erreur');
     } finally {
@@ -82,6 +98,47 @@ export default function IncidentsSurete() {
       <Card className="shadow-sm">
         <CardContent className="p-6">
           {error && <div className="text-destructive bg-destructive/10 p-3 rounded-md mb-4 text-sm">{error}</div>}
+
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="relative w-full max-w-[260px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Badge UID ou signalant..."
+                className="w-full rounded-md border border-input bg-background pl-8 pr-3 h-9 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <label className="text-sm text-muted-foreground shrink-0">Statut :</label>
+            <div className="relative w-full max-w-[220px]">
+              <select
+                value={statut}
+                onChange={(e) => { setStatut(e.target.value); setPage(0); }}
+                className="w-full appearance-none rounded-md border border-input bg-background px-3 h-9 text-sm pr-8 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Tous</option>
+                {Object.keys(statutConfig).map((s) => (
+                  <option key={s} value={s}>{statutLabel(s)}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+            </div>
+            <label className="text-sm text-muted-foreground shrink-0">Type :</label>
+            <div className="relative w-full max-w-[220px]">
+              <select
+                value={type}
+                onChange={(e) => { setType(e.target.value); setPage(0); }}
+                className="w-full appearance-none rounded-md border border-input bg-background px-3 h-9 text-sm pr-8 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Tous</option>
+                {['PERTE', 'VOL', 'FIN_CONTRAT'].map((t) => (
+                  <option key={t} value={t}>{typeIncidentLabel(t)}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+            </div>
+          </div>
 
           {loading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">Chargement...</div>

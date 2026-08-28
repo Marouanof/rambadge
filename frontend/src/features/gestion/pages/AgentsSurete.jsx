@@ -242,6 +242,7 @@ export default function AgentsSurete() {
                 )}
               </div>
             </div>
+            {error && <div className="text-destructive bg-destructive/10 p-3 rounded-md text-sm">{error}</div>}
             <DialogFooter className="mt-4">
               <Button variant="outline" type="button" onClick={() => setModal({ open: false, agent: null })}>
                 Annuler
@@ -263,6 +264,7 @@ export default function AgentsSurete() {
             </p>
           </div>
           <DialogFooter className="gap-2">
+            {error && <div className="w-full text-destructive bg-destructive/10 p-3 rounded-md text-sm">{error}</div>}
             <Button variant="outline" onClick={() => setConfirmRevoke(null)}>
               Annuler
             </Button>

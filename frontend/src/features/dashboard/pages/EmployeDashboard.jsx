@@ -69,6 +69,7 @@ export default function EmployeDashboard() {
     AUCUNE_DEMANDE: { label: 'Aucune demande', icon: FileText, bg: 'bg-[#674459]/10', fg: 'text-[#674459]' },
     EN_ATTENTE_N1: { label: 'En attente N1', icon: Clock, bg: 'bg-[#F1BE5B]/15', fg: 'text-[#A67C00]' },
     EN_ATTENTE_N2: { label: 'En attente N2', icon: Clock, bg: 'bg-[#F1BE5B]/15', fg: 'text-[#A67C00]' },
+    ACTIF: { label: 'Actif', icon: CheckCircle2, bg: 'bg-[#008B60]/10', fg: 'text-[#008B60]' },
     VALIDEE: { label: 'Actif', icon: CheckCircle2, bg: 'bg-[#008B60]/10', fg: 'text-[#008B60]' },
     REFUSEE_N1: { label: 'Refusée N1', icon: XCircle, bg: 'bg-[#C20831]/10', fg: 'text-[#C20831]' },
     REFUSEE_N2: { label: 'Refusée N2', icon: XCircle, bg: 'bg-[#C20831]/10', fg: 'text-[#C20831]' },
@@ -77,12 +78,11 @@ export default function EmployeDashboard() {
     EXPIRE: { label: 'Expiré', icon: Clock, bg: 'bg-[#674459]/10', fg: 'text-[#674459]' },
   };
 
-  const currentStatut = demande?.statut || (stats.aBadgeActif ? 'VALIDEE' : 'AUCUNE_DEMANDE');
+  const badge = stats.badge || null;
+  const currentStatut = badge?.statut || demande?.statut || (stats.aBadgeActif ? 'VALIDEE' : 'AUCUNE_DEMANDE');
   const info = statutInfo[currentStatut] || statutInfo.AUCUNE_DEMANDE;
 
-  const isWaiting = currentStatut === 'EN_ATTENTE_N1' || currentStatut === 'EN_ATTENTE_N2';
-
-  const badge = stats.badge || null;
+  const isWaiting = !badge && (currentStatut === 'EN_ATTENTE_N1' || currentStatut === 'EN_ATTENTE_N2');
   const badgeInfo = badge
     ? badgeStatutInfo[badge.statut] || { label: badge.statut, bg: 'bg-muted', fg: 'text-muted-foreground' }
     : null;

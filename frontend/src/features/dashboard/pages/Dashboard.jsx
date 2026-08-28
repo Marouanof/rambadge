@@ -12,12 +12,27 @@ import {
 
 const COLORS = ['#008B60', '#F1BE5B', '#C20831', '#674459'];
 
+function getRoleFromToken() {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const realmAccess = payload.realm_access?.roles || [];
+    return realmAccess.find((r) =>
+      ['SUPER_ADMIN', 'MANAGER', 'EMPLOYE', 'AGENT_SURETE'].includes(r)
+    ) || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const navigate = useNavigate();
+  const role = getRoleFromToken();
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -40,12 +55,12 @@ export default function Dashboard() {
   if (!stats) return null;
 
   const badgeCards = [
-    { label: 'Total badges', value: stats.totalBadges || 0, icon: IdCard, bg: 'bg-[#674459]/10', fg: 'text-[#674459]', action: () => navigate('/verification-badges') },
-    { label: 'Badges actifs', value: stats.badgesParStatut?.ACTIF || 0, icon: BadgeCheck, bg: 'bg-[#008B60]/10', fg: 'text-[#008B60]', action: () => navigate('/verification-badges') },
-    { label: 'Suspendus', value: stats.badgesParStatut?.SUSPENDU || 0, icon: PauseCircle, bg: 'bg-[#F1BE5B]/15', fg: 'text-[#A67C00]', action: () => navigate('/verification-badges') },
-    { label: 'Révoqués', value: stats.badgesParStatut?.REVOQUE || 0, icon: XCircle, bg: 'bg-[#C20831]/10', fg: 'text-[#C20831]', action: () => navigate('/verification-badges') },
-    { label: 'Expirés', value: stats.badgesParStatut?.EXPIRE || 0, icon: Clock, bg: 'bg-[#674459]/10', fg: 'text-[#674459]', action: () => navigate('/verification-badges') },
-    { label: 'Expirant sous 30j', value: stats.badgesExpirantSous30J?.length || 0, icon: Clock, bg: 'bg-[#F1BE5B]/15', fg: 'text-[#A67C00]', action: () => navigate('/verification-badges') },
+    { label: 'Total badges', value: stats.totalBadges || 0, icon: IdCard, bg: 'bg-[#674459]/10', fg: 'text-[#674459]', action: () => navigate('/verification-badges'), roles: ['AGENT_SURETE'] },
+    { label: 'Badges actifs', value: stats.badgesParStatut?.ACTIF || 0, icon: BadgeCheck, bg: 'bg-[#008B60]/10', fg: 'text-[#008B60]', action: () => navigate('/verification-badges'), roles: ['AGENT_SURETE'] },
+    { label: 'Suspendus', value: stats.badgesParStatut?.SUSPENDU || 0, icon: PauseCircle, bg: 'bg-[#F1BE5B]/15', fg: 'text-[#A67C00]', action: () => navigate('/verification-badges'), roles: ['AGENT_SURETE'] },
+    { label: 'Révoqués', value: stats.badgesParStatut?.REVOQUE || 0, icon: XCircle, bg: 'bg-[#C20831]/10', fg: 'text-[#C20831]', action: () => navigate('/verification-badges'), roles: ['AGENT_SURETE'] },
+    { label: 'Expirés', value: stats.badgesParStatut?.EXPIRE || 0, icon: Clock, bg: 'bg-[#674459]/10', fg: 'text-[#674459]', action: () => navigate('/verification-badges'), roles: ['AGENT_SURETE'] },
+    { label: 'Expirant sous 30j', value: stats.badgesExpirantSous30J?.length || 0, icon: Clock, bg: 'bg-[#F1BE5B]/15', fg: 'text-[#A67C00]', action: () => navigate('/verification-badges'), roles: ['AGENT_SURETE'] },
   ];
 
   const demandeBarData = [
@@ -63,12 +78,12 @@ export default function Dashboard() {
   const tauxValidation = totalDemandes > 0 ? Math.round((validees / totalDemandes) * 100) : 0;
 
   const infoCards = [
-    { label: 'En attente N1', value: stats.demandesParStatut?.EN_ATTENTE_N1 || 0, icon: ClipboardList, bg: 'bg-[#F1BE5B]/15', fg: 'text-[#A67C00]', action: () => navigate('/validations') },
-    { label: 'En attente N2', value: stats.demandesParStatut?.EN_ATTENTE_N2 || 0, icon: ClipboardCheck, bg: 'bg-[#674459]/10', fg: 'text-[#674459]', action: () => navigate('/dossiers-n2') },
+    { label: 'En attente N1', value: stats.demandesParStatut?.EN_ATTENTE_N1 || 0, icon: ClipboardList, bg: 'bg-[#F1BE5B]/15', fg: 'text-[#A67C00]', action: () => navigate('/validations'), roles: ['MANAGER'] },
+    { label: 'En attente N2', value: stats.demandesParStatut?.EN_ATTENTE_N2 || 0, icon: ClipboardCheck, bg: 'bg-[#674459]/10', fg: 'text-[#674459]', action: () => navigate('/dossiers-n2'), roles: ['AGENT_SURETE'] },
     { label: 'Taux de validation', value: `${tauxValidation}%`, icon: BarChart3, bg: 'bg-[#674459]/10', fg: 'text-[#674459]' },
     { label: 'Total employés', value: stats.totalEmployes || 0, icon: Users },
     { label: 'Incidents en cours', value: stats.incidentsEnCours || 0, icon: AlertTriangle },
-    { label: 'Total passages', value: stats.totalPassages || 0, icon: ArrowRightLeft, action: () => navigate('/historique') },
+    { label: 'Total passages', value: stats.totalPassages || 0, icon: ArrowRightLeft, action: () => navigate('/historique'), roles: ['AGENT_SURETE'] },
   ];
 
   const badgePieData = badgeCards.filter((c) => !['Total badges', 'Expirant sous 30j'].includes(c.label) && c.value > 0).map((c) => ({ name: c.label, value: c.value }));
@@ -95,35 +110,41 @@ export default function Dashboard() {
       {error && <div className="text-destructive bg-destructive/10 p-3 rounded-md text-sm">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {badgeCards.map((card) => (
-          <Card key={card.label} className={`shadow-sm ${card.action ? 'cursor-pointer transition-shadow hover:shadow-md' : ''}`} onClick={card.action}>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className={`rounded-lg p-2.5 shrink-0 ${card.bg}`}>
-                <card.icon className={`size-5 ${card.fg}`} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm text-muted-foreground">{card.label}</p>
-                <p className="text-2xl font-bold text-foreground">{card.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {badgeCards.map((card) => {
+          const clickable = card.action && (!card.roles || card.roles.includes(role));
+          return (
+            <Card key={card.label} className={`shadow-sm ${clickable ? 'cursor-pointer transition-shadow hover:shadow-md' : ''}`} onClick={clickable ? card.action : undefined}>
+              <CardContent className="flex items-center gap-4 p-6">
+                <div className={`rounded-lg p-2.5 shrink-0 ${card.bg}`}>
+                  <card.icon className={`size-5 ${card.fg}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm text-muted-foreground">{card.label}</p>
+                  <p className="text-2xl font-bold text-foreground">{card.value}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {infoCards.map((card) => (
-          <Card key={card.label} className={`shadow-sm ${card.action ? 'cursor-pointer transition-shadow hover:shadow-md' : ''}`} onClick={card.action}>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className={`rounded-lg p-2.5 shrink-0 ${card.action ? 'bg-[#674459]/10' : 'bg-muted'}`}>
-                <card.icon className={`size-5 ${card.action ? 'text-[#674459]' : 'text-muted-foreground'}`} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm text-muted-foreground">{card.label}</p>
-                <p className="text-2xl font-bold text-foreground">{card.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {infoCards.map((card) => {
+          const clickable = card.action && (!card.roles || card.roles.includes(role));
+          return (
+            <Card key={card.label} className={`shadow-sm ${clickable ? 'cursor-pointer transition-shadow hover:shadow-md' : ''}`} onClick={clickable ? card.action : undefined}>
+              <CardContent className="flex items-center gap-4 p-6">
+                <div className={`rounded-lg p-2.5 shrink-0 ${clickable ? 'bg-[#674459]/10' : 'bg-muted'}`}>
+                  <card.icon className={`size-5 ${clickable ? 'text-[#674459]' : 'text-muted-foreground'}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm text-muted-foreground">{card.label}</p>
+                  <p className="text-2xl font-bold text-foreground">{card.value}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -13,6 +13,7 @@ import ma.ram.sigba.service.IncidentService;
 import ma.ram.sigba.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,7 +45,7 @@ public class IncidentController {
             @RequestParam(required = false) IncidentStatut statut,
             @RequestParam(required = false) TypeIncident type,
             @RequestParam(required = false) String search,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @PageableDefault(size = 20, sort = "dateIncident", direction = Sort.Direction.DESC) Pageable pageable) {
         var user = userService.getCurrentUser();
         Page<IncidentResponseDTO> incidents = incidentService.listerIncidents(user, statut, type, search, pageable);
         return ResponseEntity.ok(ApiResponse.ok(incidents));

@@ -158,7 +158,7 @@ public class IncidentService {
         } else if (currentUser.getRole() == UserRole.MANAGER) {
             incidents = incidentRepository.findByDirectionIdAndFilters(currentUser.getDirection().getId(), statut, type, s, pageable);
         } else if (currentUser.getRole() == UserRole.AGENT_SURETE) {
-            incidents = incidentRepository.findByStatutOrderByDateIncidentDesc(IncidentStatut.SUSPENDU, pageable);
+            incidents = incidentRepository.findByFilters(statut, type, s, pageable);
         } else {
             incidents = incidentRepository.findBySignalantIdOrderByDateIncidentDesc(currentUser.getId(), pageable);
         }
