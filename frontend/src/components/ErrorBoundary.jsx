@@ -24,8 +24,9 @@ export default class ErrorBoundary extends Component {
     if (this.state.hasError) {
       return (
         <div className="relative min-h-screen overflow-hidden bg-slate-900">
-          <img src="/ram_tarmac.png" alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-30" />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/85 to-slate-900" />
+          <img src="/ram_tarmac.png" alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-50" />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 via-slate-900/60 to-slate-900" />
+          <div className="grain-overlay" />
 
           <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-12 text-center">
             <img src="/logo_ram.png" alt="Royal Air Maroc" className="mb-8 w-44 object-contain opacity-90" />
@@ -61,6 +62,20 @@ export default class ErrorBoundary extends Component {
           <div className="absolute bottom-5 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap text-[11px] text-white/35">
             Portail Badges — Royal Air Maroc
           </div>
+
+          <style>{`
+            .grain-overlay {
+              position: absolute;
+              inset: 0;
+              z-index: 1;
+              pointer-events: none;
+              opacity: 0.35;
+              background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+              background-repeat: repeat;
+              background-size: 180px 180px;
+              mix-blend-mode: overlay;
+            }
+          `}</style>
         </div>
       );
     }

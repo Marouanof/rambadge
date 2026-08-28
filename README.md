@@ -84,7 +84,7 @@ cp .env.example .env
 | `KEYCLOAK_SERVER_URL` | URL du serveur Keycloak |
 | `KEYCLOAK_REALM` | `sigba-realm` |
 | `KEYCLOAK_CLIENT_ID` | `sigba-frontend` |
-| `MAIL_HOST` / `MAIL_PORT` / `MAIL_USER` / `MAIL_PASS` | SMTP (ex. Mailtrap en dev) |
+| `MAIL_HOST` / `MAIL_PORT` / `MAIL_USER` / `MAIL_PASS` | SMTP (ex. Mailpit en local) |
 
 #### 3. Keycloak
 

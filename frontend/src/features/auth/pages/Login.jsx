@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Eye, EyeOff } from 'lucide-react';
@@ -10,10 +10,10 @@ const CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
 const CLIENT_SECRET = import.meta.env.VITE_KEYCLOAK_CLIENT_SECRET;
 
 const inputClasses =
-  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.06] pl-4 pr-4 text-sm text-[#f8fafc] placeholder:text-white/40 outline-none transition-all focus:border-white/40 focus:bg-white/10 focus:ring-2 focus:ring-white/10";
+  "h-11 w-full rounded-lg border border-white/20 bg-white/[0.06] pl-4 pr-4 text-sm text-[#f8fafc] placeholder:text-white/55 outline-none transition-all focus:border-white/40 focus:bg-white/10 focus:ring-2 focus:ring-white/20";
 
 const passwordInputClasses =
-  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.06] pl-4 pr-10 text-sm text-[#f8fafc] placeholder:text-white/40 outline-none transition-all focus:border-white/40 focus:bg-white/10 focus:ring-2 focus:ring-white/10";
+  "h-11 w-full rounded-lg border border-white/20 bg-white/[0.06] pl-4 pr-10 text-sm text-[#f8fafc] placeholder:text-white/55 outline-none transition-all focus:border-white/40 focus:bg-white/10 focus:ring-2 focus:ring-white/20";
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -62,29 +62,32 @@ export default function Login() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-900">
+    <div className="relative min-h-screen bg-slate-900">
       <img
         src="/ram_tarmac.png"
         alt=""
-        className="absolute inset-0 h-full w-full object-cover object-center opacity-40"
+        className="fixed inset-0 h-full w-full object-cover object-center opacity-50"
+        aria-hidden="true"
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/75 to-slate-900" />
+      <div className="fixed inset-0 bg-gradient-to-b from-slate-900/50 via-slate-900/60 to-slate-900" aria-hidden="true" />
 
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-6 py-12">
-        <Card className="w-full max-w-[420px] border border-white/10 bg-slate-900/70 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-          <CardContent className="px-10 py-10">
+      <div className="grain-overlay" />
+
+      <div className="relative z-10 flex min-h-screen justify-center px-6 py-12">
+        <Card className="my-auto w-full max-w-[420px] border border-white/10 bg-slate-900/70 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+          <CardContent className="px-8 py-7">
             <img
               src="/logo_ram.png"
               alt="Royal Air Maroc"
-              className="mx-auto mb-6 w-44 object-contain brightness-0 invert"
+              className="mx-auto mb-5 w-32 object-contain brightness-0 invert"
             />
 
             <h1 className="text-center text-xl font-bold tracking-tight text-white">
               Portail Badges – Royal Air Maroc
             </h1>
-            <p className="mt-1 text-center text-[13px] text-white/50">Espace Authentification</p>
+            <p className="mt-1 text-center text-[13px] text-white/70">Espace Authentification</p>
 
-            <form onSubmit={handleLogin} className="mt-8 space-y-4">
+            <form onSubmit={handleLogin} className="mt-6 space-y-3.5">
               <div>
                 <label htmlFor="login-email" className="mb-1.5 block text-[13px] font-semibold text-white">
                   Email
@@ -92,6 +95,7 @@ export default function Login() {
                 <input
                   id="login-email"
                   type="email"
+                  autoComplete="email"
                   placeholder="example@ram.ma"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -101,13 +105,22 @@ export default function Login() {
               </div>
 
               <div>
-                <label htmlFor="login-password" className="mb-1.5 block text-[13px] font-semibold text-white">
-                Mot de passe
-              </label>
+                <div className="mb-1.5 flex items-baseline justify-between">
+                  <label htmlFor="login-password" className="block text-[13px] font-semibold text-white">
+                    Mot de passe
+                  </label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-[12px] font-medium text-white/70 underline underline-offset-2 transition-opacity hover:text-white hover:opacity-100"
+                  >
+                    Mot de passe oublié ?
+                  </Link>
+                </div>
               <div className="relative">
                 <input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -140,18 +153,26 @@ export default function Login() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <a href="/forgot-password" className="text-[13px] font-medium text-white/80 transition-opacity hover:opacity-70">
-                Mot de passe oublié ?
-              </a>
-            </div>
-
-            <p className="mt-7 text-center text-xs text-white/40">
+            <p className="mt-7 text-center text-xs text-white/65">
               Problème d'accès ? Contactez le support IT RAM
             </p>
           </CardContent>
         </Card>
       </div>
+
+      <style>{`
+        .grain-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 1;
+          pointer-events: none;
+          opacity: 0.35;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+          background-repeat: repeat;
+          background-size: 180px 180px;
+          mix-blend-mode: overlay;
+        }
+      `}</style>
     </div>
   );
 }
